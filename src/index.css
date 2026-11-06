@@ -1,0 +1,84 @@
+/* Los mismos colores que la web de Django y la app móvil */
+:root {
+  --naranja: #f5a623;
+  --naranja-oscuro: #e0951a;
+  --gris-oscuro: #3d3d3d;
+  --gris-claro: #f3f4f6;
+}
+
+body {
+  background-color: var(--gris-claro);
+  color: var(--gris-oscuro);
+}
+
+.titulo-marca {
+  font-family: "Oswald", system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.text-marca {
+  color: var(--naranja);
+}
+
+.barra-marca {
+  background-color: var(--gris-oscuro);
+}
+
+.barra-marca .navbar-brand {
+  color: var(--naranja);
+}
+
+/* Texto oscuro: el blanco sobre naranja se lee mal */
+.btn-marca {
+  --bs-btn-color: var(--gris-oscuro);
+  --bs-btn-bg: var(--naranja);
+  --bs-btn-border-color: var(--naranja);
+  --bs-btn-hover-color: var(--gris-oscuro);
+  --bs-btn-hover-bg: var(--naranja-oscuro);
+  --bs-btn-hover-border-color: var(--naranja-oscuro);
+  --bs-btn-active-color: var(--gris-oscuro);
+  --bs-btn-active-bg: var(--naranja-oscuro);
+  --bs-btn-active-border-color: var(--naranja-oscuro);
+  --bs-btn-disabled-color: var(--gris-oscuro);
+  --bs-btn-disabled-bg: var(--naranja);
+  --bs-btn-disabled-border-color: var(--naranja);
+  font-weight: 600;
+}
+
+.pantalla-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.tarjeta-login {
+  width: 100%;
+  max-width: 400px;
+}
+
+.numero-panel {
+  font-family: "Oswald", system-ui, sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.foto-tabla {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.foto-vacia {
+  background-color: var(--gris-claro);
+}
+
+.foto-formulario {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  object-fit: cover;
+}
