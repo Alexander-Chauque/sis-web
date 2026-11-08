@@ -1,4 +1,4 @@
-// Listado de gastos, con el diseño de Django: filtros a la izquierda y tabla a la derecha.
+// Listado de gastos
 import { useState } from "react";
 import { Link } from "react-router-dom";
 

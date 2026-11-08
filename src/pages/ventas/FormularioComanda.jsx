@@ -1,5 +1,4 @@
-// Tomar un pedido nuevo o cambiar los productos de una comanda abierta,
-// con el diseño de "Registrar comanda" de Django.
+// Tomar un pedido nuevo o cambiar los productos de una comanda abierta
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 

@@ -1,4 +1,3 @@
-// Piezas que se repiten en todas las pantallas.
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -6,8 +5,6 @@ import { ESTADOS_COMANDA } from "../utils/formato";
 import { Icono } from "./Icono";
 import { ubicar } from "./menu";
 
-// Encabezado de cada pantalla, como en Django: migas de pan, ícono en círculo, título y acciones.
-// El ícono y las migas salen del menú según la ruta actual.
 export function Encabezado({ titulo, subtitulo, icono, children, volver }) {
   const { pathname } = useLocation();
   const { grupo, opcion } = ubicar(pathname);
@@ -79,9 +76,6 @@ export function Encabezado({ titulo, subtitulo, icono, children, volver }) {
 const ICONOS_ALERTA = { success: "check_circle", danger: "error", warning: "warning", info: "info" };
 const DURACION_AVISO = 5000;
 
-// Mensaje con borde de color a la izquierda, como los "messages" de Django.
-// Los avisos de éxito se desvanecen solos a los 5 segundos, igual que en Django;
-// los errores quedan a la vista hasta que se cierran.
 export function Alerta({ tipo = "danger", children, onCerrar }) {
   if (!children) return null;
   // La clave hace que un mensaje nuevo vuelva a empezar la cuenta
@@ -152,7 +146,6 @@ export function Etiqueta({ texto }) {
 }
 
 // Etiqueta, campo y ayuda de un formulario.
-// "prefijo" muestra un recuadro delante del campo (ej. "$" en los precios), como en Django.
 export function Campo({ id, etiqueta, ayuda, children, className = "mb-3", prefijo }) {
   return (
     <div className={`grupo-campo ${className}`}>
@@ -183,9 +176,6 @@ function iconoDeVentana(titulo, peligro, conFormulario) {
   return "add_circle";
 }
 
-// Ventana sobre la pantalla. Se cierra con Escape o con el botón Cancelar.
-// "tono" pinta el círculo del ícono: "peligro" (rojo), "exito" (verde) o naranja si no se indica.
-// "botonPeligro" pone el botón de confirmar en rojo aunque el ícono no lo sea.
 export function Modal({
   titulo,
   subtitulo,

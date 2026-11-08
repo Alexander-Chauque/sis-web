@@ -1,5 +1,3 @@
-// Mensajes arriba de la pantalla, igual que los "messages" de Django en base.html:
-// franja de color con borde a la izquierda, a lo ancho, que se desvanece a los 5 segundos.
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ContextoNotificar, useNotificar } from "../hooks/useNotificar";
@@ -35,9 +33,6 @@ export function ProveedorMensajes({ children }) {
     </ContextoNotificar.Provider>
   );
 }
-
-// Manda un texto a los mensajes de arriba cuando aparece o cambia, y avisa con onListo
-// para que la pantalla limpie su estado (así el mismo error puede volver a mostrarse).
 export function Notificar({ texto, tipo = "danger", onListo }) {
   const notificar = useNotificar();
   const listo = useRef(onListo);

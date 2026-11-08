@@ -27,10 +27,9 @@ import FormularioComanda from "./pages/ventas/FormularioComanda";
 import { Comprobante, Tickets } from "./pages/ventas/Impresiones";
 import Mesas from "./pages/ventas/Mesas";
 
-// Reportes trae Chart.js y html2canvas: se descarga recién al abrirlo
 const Reportes = lazy(() => import("./pages/reportes/Reportes"));
 
-// Dirección, permiso y pantalla. Django vuelve a comprobar el permiso en cada pedido.
+// Dirección, permiso y pantalla.
 const PANTALLAS = [
   { ruta: "platos", permiso: "platos:leer", Pantalla: Platos },
   { ruta: "bebidas", permiso: "bebidas:leer", Pantalla: Bebidas },

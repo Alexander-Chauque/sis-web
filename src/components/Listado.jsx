@@ -1,4 +1,4 @@
-// Piezas de los listados con el diseño de Django:
+// Piezas de los listados:
 // panel de filtros a la izquierda, panel de resultados a la derecha,
 // botones de acción con íconos y paginación numerada.
 import { Link } from "react-router-dom";
@@ -16,7 +16,7 @@ export function ListadoLayout({ filtros, children }) {
   );
 }
 
-// Formulario de filtros: los cambios se aplican con el botón (o Enter), como en Django
+// Formulario de filtros: los cambios se aplican con el botón (o Enter)
 export function PanelFiltros({ onAplicar, onLimpiar, children }) {
   return (
     <form
@@ -128,7 +128,7 @@ export function CabeceraResultados({ porPagina, onPorPagina, titulo = "Resultado
   );
 }
 
-// Números de página alrededor de la actual, como el paginador de Django
+// Números de página alrededor de la actual
 function paginasVisibles(pagina, paginas) {
   const desde = Math.max(1, Math.min(pagina - 2, paginas - 4));
   const hasta = Math.min(paginas, desde + 4);
@@ -182,7 +182,6 @@ const ACCIONES = {
 };
 
 // Botón cuadrado con ícono de las tablas de Django (ver, editar, dar de baja, eliminar).
-// "icono" cambia el dibujo y deja el color del tipo (ej. tipo="activar" icono="add" para "nueva comanda").
 export function BotonAccion({ tipo, titulo, onClick, a, disabled, icono: otroIcono }) {
   const { icono: iconoDelTipo, clase } = ACCIONES[tipo];
   const icono = otroIcono || iconoDelTipo;

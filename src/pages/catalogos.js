@@ -1,5 +1,4 @@
-// Configuración de las pantallas de catálogo simple (ver Catalogo.jsx).
-// Títulos, textos y botones copiados de las listas de Django.
+// Configuración de las pantallas de catálogo simple
 export const CATALOGOS = {
   categoriasPlato: {
     titulo: "Categorías de Platos",

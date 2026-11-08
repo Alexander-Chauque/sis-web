@@ -6,7 +6,6 @@ import { Encabezado } from "../../components/Comunes";
 import { Icono } from "../../components/Icono";
 import { api, mensajeDeError } from "../../services/api";
 
-// Las mismas unidades que acepta el modelo Ingrediente en Django
 const UNIDADES = [
   { valor: "kg", nombre: "Kilogramo" },
   { valor: "g", nombre: "Gramos" },
@@ -15,7 +14,7 @@ const UNIDADES = [
   { valor: "u", nombre: "Unidades" },
 ];
 const TIPOS_DE_FOTO = ["image/jpeg", "image/png", "image/webp"];
-const TAMANIO_MAXIMO_FOTO = 5 * 1024 * 1024; // 5 MB, igual que en Django
+const TAMANIO_MAXIMO_FOTO = 5 * 1024 * 1024;
 
 export default function FormularioIngrediente() {
   const { id } = useParams();
@@ -35,7 +34,6 @@ export default function FormularioIngrediente() {
 
   useEffect(() => {
     if (!esEdicion) return undefined;
-    // Una respuesta atrasada no debe pisar lo que la persona ya cambió en el formulario
     let vigente = true;
     api
       .get(`/ingredientes/${id}/`)

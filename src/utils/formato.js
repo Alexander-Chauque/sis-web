@@ -1,6 +1,3 @@
-// Funciones para mostrar datos: textos, montos, fechas y archivos CSV.
-
-// Quita mayúsculas y acentos para que "azucar" también encuentre "Azúcar"
 export const normalizar = (texto) =>
   String(texto ?? "")
     .toLowerCase()
@@ -14,10 +11,9 @@ export const dinero = (valor) =>
     maximumFractionDigits: 2,
   })}`;
 
-// Django envía las fechas como "2026-11-07" o "2026-11-07T13:45:00-03:00"
 const aFecha = (valor) => {
   if (!valor) return null;
-  // Una fecha sola se toma como día local: new Date("2026-11-07") sería el día anterior en Argentina
+  // Una fecha sola se toma como día local
   if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
     const [anio, mes, dia] = valor.split("-").map(Number);
     return new Date(anio, mes - 1, dia);
@@ -54,7 +50,6 @@ export const montoValido = (texto, { permitirCero = false } = {}) => {
   return permitirCero ? Number(limpio) >= 0 : Number(limpio) > 0;
 };
 
-// Descarga una tabla como CSV. Usa ";" y BOM para que Excel en español la abra bien.
 export function descargarCSV(nombreArchivo, encabezados, filas) {
   const celda = (valor) => {
     const texto = String(valor ?? "");
@@ -78,7 +73,7 @@ export const ESTADOS_COMANDA = {
   anulado: { nombre: "Anulado", color: "text-bg-danger" },
 };
 
-// La regla de contraseñas de Django (empleados/forms.py)
+// La regla de contraseñas
 export const AYUDA_CLAVE = "Al menos 8 caracteres, con una mayúscula, un número y un carácter especial.";
 
 // Cantidades para el selector "Mostrar N registros" de los listados

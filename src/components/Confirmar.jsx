@@ -1,10 +1,3 @@
-// Ventana de confirmación con el diseño de los modales de Django:
-// ícono en círculo, pregunta y explicación, tarjeta con el registro y su estado actual,
-// motivo obligatorio (si se pide), recuadro "Importante" y el botón de la acción.
-//
-// confirmar("¿Eliminar X?")                 -> título y botón según el texto
-// confirmar({ titulo, subtitulo, icono, tono, resumen, motivo, importante, textoConfirmar, iconoConfirmar, peligro })
-// Devuelve false si se cancela, o { motivo } si se confirma.
 import { useCallback, useRef, useState } from "react";
 
 import { ContextoConfirmar } from "../hooks/useConfirmar";
@@ -157,7 +150,6 @@ export function ProveedorConfirmar({ children }) {
   return (
     <ContextoConfirmar.Provider value={confirmar}>
       {children}
-      {/* La clave hace que cada confirmación empiece con el motivo vacío */}
       {pedido && <VentanaConfirmar key={`${pedido.titulo}-${pedido.resumen?.nombre || pedido.mensaje}`} pedido={pedido} onResponder={alResponder} />}
     </ContextoConfirmar.Provider>
   );

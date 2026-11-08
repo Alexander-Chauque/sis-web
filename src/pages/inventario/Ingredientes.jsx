@@ -1,4 +1,4 @@
-// Listado de ingredientes, con el diseño de Django: filtros a la izquierda y resultados a la derecha.
+// Listado de ingredientes
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 

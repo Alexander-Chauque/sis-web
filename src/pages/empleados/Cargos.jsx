@@ -1,4 +1,4 @@
-// Cargos y permisos, con el diseño de los listados de Django.
+// Cargos y permisos
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -60,7 +60,7 @@ function FormularioCargo({ cargo, onCerrar, onGuardado }) {
   );
 }
 
-// Matriz de módulos por acciones, con una casilla por permiso existente
+// Matriz de módulos por acciones
 function AsignarPermisos({ cargo, catalogo, onCerrar, onGuardado }) {
   const { puede } = useAuth();
   const detalle = useCarga(`/cargos/${cargo.id_cargo}/`);

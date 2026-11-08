@@ -10,7 +10,7 @@ import { useConfirmar } from "../../hooks/useConfirmar";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, fechaHora, montoValido, opcionesAnularComanda, textoMonto } from "../../utils/formato";
 
-// Los mismos métodos que acepta el modelo Pago de Django
+// Losmétodos que acepta el modelo Pago
 const METODOS_PAGO = [
   { valor: "efectivo", nombre: "Efectivo" },
   { valor: "tarjeta", nombre: "Tarjeta de débito/crédito" },

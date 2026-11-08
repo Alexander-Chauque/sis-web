@@ -1,4 +1,4 @@
-// Log de auditoría, con el diseño de Django: filtros a la izquierda y tabla a la derecha.
+// Log de auditoría.
 import { useState } from "react";
 
 import { Cargando } from "../../components/Cargando";

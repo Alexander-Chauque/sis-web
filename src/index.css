@@ -1,8 +1,3 @@
-/* =========================================
-   Diseño copiado de la web de Django (static/css/base.css, home.css,
-   login.css, usuario.css y tema_oscuro.css), aplicado sobre Bootstrap.
-   ========================================= */
-
 /* ---------- 1. Colores (claro y oscuro) ---------- */
 :root {
   --naranja: #f5a623;
@@ -1414,7 +1409,7 @@ legend.form-label {
   font-size: 16px;
 }
 
-/* ---------- Páginas de entrada de los módulos (inventario.css de Django) ---------- */
+/* ---------- Páginas de entrada de los módulos ---------- */
 .modulo-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -1550,7 +1545,7 @@ legend.form-label {
   }
 }
 
-/* ---------- Listados: filtros a la izquierda y resultados a la derecha (base.css de Django) ---------- */
+/* ---------- Listados: filtros a la izquierda y resultados a la derecha ---------- */
 .contenedor-listado {
   max-width: 1400px;
   margin: 0 auto;
@@ -1736,13 +1731,13 @@ legend.form-label {
   font-size: 13px;
 }
 
-/* Lista de casillas larga (ej. mesas): con desplazamiento */
+/* Lista de casillas larga */
 .checkboxes-largo {
   max-height: 220px;
   overflow-y: auto;
 }
 
-/* Tarjetas con título de la pantalla de ventas (Ventas.css de Django) */
+/* Tarjetas con título de la pantalla de ventas */
 .tarjeta-seccion {
   margin-bottom: 25px;
   overflow: hidden;
@@ -1850,7 +1845,7 @@ legend.form-label {
   border-radius: 8px 8px 0 0;
 }
 
-/* Texto largo en una celda: se corta con "..." y se lee completo en el detalle */
+/* Texto largo en una celda */
 .detalle-corto {
   max-width: 260px;
   overflow: hidden;
@@ -1858,7 +1853,7 @@ legend.form-label {
   white-space: nowrap;
 }
 
-/* Botones de la lista de comandas: "Cambiar estado" y los bloqueados (comandas.css de Django) */
+/* Botones de la lista de comandas */
 .btn-estado {
   background-color: var(--gris-claro);
   color: #4b5563;
@@ -1966,7 +1961,7 @@ legend.form-label {
   background-color: #ef4444;
 }
 
-/* Ícono del calendario en naranja, como el selector de fechas de Django */
+/* Ícono del calendario en naranja */
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   filter: invert(64%) sepia(84%) saturate(600%) hue-rotate(358deg) brightness(101%) contrast(93%);
@@ -2006,7 +2001,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 13px;
 }
 
-/* La tabla dentro del panel de resultados: cabecera gris con esquinas redondeadas */
+/* La tabla dentro del panel de resultados */
 .tabla-panel .table-responsive {
   border-radius: 8px 8px 0 0;
 }
@@ -2158,7 +2153,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: #4b5563;
 }
 
-/* Modo oscuro: los mismos colores de tema_oscuro.css de Django */
+/* Modo oscuro*/
 [data-tema="oscuro"] .btn-detalle {
   background-color: #1e3a5f;
   color: #93c5fd;
@@ -2237,9 +2232,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 }
 
-/* ---------- Formularios con el diseño de Django (platos.css y base.css) ---------- */
+/* ---------- Formularios ---------- */
 
-/* Etiquetas en Oswald y en mayúsculas, con el asterisco de obligatorio en rojo */
 .form-label,
 legend.form-label {
   margin-bottom: 8px;
@@ -2259,7 +2253,6 @@ legend.form-label {
   color: var(--rojo);
 }
 
-/* Campos con borde de 2 px y fondo gris claro, como el .form-control de Django */
 .form-control,
 .form-select {
   padding: 12px 15px;
@@ -2502,7 +2495,7 @@ legend.tarjeta-titulo {
   text-transform: uppercase;
 }
 
-/* Ventanas: ícono en círculo, título en Oswald y botón de cerrar cuadrado (modales de Django) */
+
 .modal-header {
   gap: 15px;
   padding: 25px 30px 15px;
@@ -2619,7 +2612,7 @@ legend.tarjeta-titulo {
   }
 }
 
-/* ---------- Ventanas "Ver detalle" (platos.css y empleados.css de Django) ---------- */
+/* ---------- Ventanas ---------- */
 .detalle-cabecera {
   margin-bottom: 20px;
 }
@@ -2720,7 +2713,7 @@ legend.tarjeta-titulo {
   line-height: 1.4;
 }
 
-/* Secciones con título, como "Datos personales" en el detalle de empleado */
+/* Secciones con título*/
 .seccion-detalle + .seccion-detalle {
   margin-top: 22px;
   padding-top: 22px;
@@ -2887,7 +2880,7 @@ legend.tarjeta-titulo {
   text-transform: uppercase;
 }
 
-/* Lista simple dentro de un detalle (ingredientes de un plato, permisos de un cargo) */
+/* Lista de productos */
 .tabla-detalle {
   width: 100%;
   border-collapse: collapse;
@@ -2960,7 +2953,7 @@ legend.tarjeta-titulo {
   }
 }
 
-/* ---------- Registrar comanda (comandas.css de Django) ---------- */
+/* ---------- Registrar comanda ---------- */
 .contenedor-comanda {
   max-width: 1300px;
   margin: 0 auto;
@@ -3639,7 +3632,6 @@ legend.tarjeta-titulo {
   --cuenta-borde: #e5e7eb;
   --cuenta-texto: #2d2d2d;
   --cuenta-texto-suave: #6b7280;
-  /* Alto del paisaje: crece con la pantalla, entre 100 y 320 píxeles */
   --cuenta-alto-paisaje: clamp(100px, 21vw, 320px);
   --cuenta-si-fondo: #d1fae5;
   --cuenta-si-texto: #065f46;
@@ -3666,7 +3658,6 @@ legend.tarjeta-titulo {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* El paisaje llega a los bordes, compensando el padding de .contenido */
   margin: 0 -30px -30px;
   padding: 0 30px calc(var(--cuenta-alto-paisaje) * 0.75);
   min-height: calc(100vh - 112px);
@@ -4111,7 +4102,7 @@ body:has(.cuenta-pagina) .footer {
   }
 }
 
-/* Ventana de confirmación con resumen y motivo (modales de base.css de Django) */
+/* Ventana de confirmación con resumen y motivo */
 .modal-titulos {
   flex: 1;
   min-width: 0;
@@ -4218,7 +4209,6 @@ body:has(.cuenta-pagina) .footer {
   margin-bottom: 6px;
 }
 
-/* "Importante" sin peligro (ej. cambio de estado): mismo diseño en naranja */
 .modal-alerta-aviso {
   display: flex;
   align-items: flex-start;
@@ -4261,7 +4251,7 @@ body:has(.cuenta-pagina) .footer {
   }
 }
 
-/* ---------- Reportes y Estadísticas (reportes.css de Django) ---------- */
+/* ---------- Reportes y Estadísticas ---------- */
 .contenedor-reportes {
   max-width: 1300px;
   margin: 0 auto;
@@ -4577,7 +4567,6 @@ body:has(.cuenta-pagina) .footer {
   }
 }
 
-/* PDF: solo el reporte, sin menú, filtros ni pie */
 @media print {
   .contenedor-reportes .page-header,
   .contenedor-reportes .breadcrumb {

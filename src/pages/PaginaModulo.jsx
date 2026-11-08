@@ -1,4 +1,4 @@
-// Página de entrada de un módulo, como las de Django (Inventario, Empleados, Finanzas):
+// Página de entrada de un módulo:
 // una tarjeta con foto por cada sección. Solo se ven las que el usuario puede abrir.
 import { Link } from "react-router-dom";
 

@@ -1,5 +1,4 @@
-// Reportes y Estadísticas, con el diseño de Django: pestañas, filtro por fechas,
-// botones Imagen / PDF y los mismos gráficos (Chart.js).
+// Reportes y Estadísticas
 import Chart from "chart.js/auto";
 import html2canvas from "html2canvas";
 import { useEffect, useRef, useState } from "react";
@@ -19,7 +18,7 @@ const PESTANIAS = [
   { clave: "metodos", nombre: "Pagos", icono: "payments" },
 ];
 
-// Fecha del gráfico de ventas sin el año: "2026-11-07" -> "07/11"
+// Fecha del gráfico "07/11"
 const diaYMes = (texto) => {
   const [, mes, dia] = String(texto).slice(0, 10).split("-");
   return `${dia}/${mes}`;
@@ -140,7 +139,7 @@ export default function Reportes() {
   const area = useRef(null);
   const r = reporte.datos;
 
-  // Igual que el botón "Imagen" de Django: una foto del área del reporte (html2canvas)
+  // Igual que el botón "Imagen": una foto del área del reporte (html2canvas)
   const descargarImagen = async () => {
     setExportando(true);
     try {

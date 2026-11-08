@@ -135,7 +135,7 @@ export default function Platos() {
   const puedeEscribir = puede("platos:escribir");
   const puedeEditar = puede("platos:modificar");
   const puedeEliminar = puede("platos:eliminar");
-  // Las opciones del formulario solo hacen falta si se puede crear o editar
+  // Las opciones del formulario de plato dependen de los permisos, para que no se pueda crear un plato con ingredientes que no se pueden ver
   const categorias = useCarga("/categorias/");
   const ingredientes = useCarga(puedeEscribir || puedeEditar ? "/platos/ingredientes/" : null);
   // Lo que se marca en el panel y lo que ya se aplicó con "Aplicar filtros"

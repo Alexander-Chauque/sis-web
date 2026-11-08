@@ -1,4 +1,4 @@
-// Listado de cajas, con el diseño de Django: filtros a la izquierda y tabla a la derecha.
+// Listado de cajas
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 

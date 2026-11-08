@@ -1,5 +1,3 @@
-// Diseño común de las pantallas con sesión, igual al de Django:
-// menú lateral desplegable, barra superior oscura con el logo, menú del usuario y pie de página.
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 

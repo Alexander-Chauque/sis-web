@@ -1,6 +1,4 @@
-// Pantalla común para listas simples con nombre, descripción y estado, con el diseño de Django.
 // La usan las categorías de platos, los tipos de bebida, las categorías de gasto y los métodos de pago.
-// Cada una se configura en catalogos.js.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -32,7 +30,7 @@ export default function Catalogo({ config }) {
   const [filtros, setFiltros] = useState(FILTROS_VACIOS);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
-  const [editando, setEditando] = useState(null); // null: cerrado; {}: nuevo; fila: edición
+  const [editando, setEditando] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");

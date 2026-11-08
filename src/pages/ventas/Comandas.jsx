@@ -1,5 +1,3 @@
-// Listado de comandas, con el diseño de Django: filtros a la izquierda y tabla a la derecha.
-// Los filtros viven en la dirección: así "Ver comandas" de una mesa abre esta pantalla ya filtrada.
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -59,7 +57,7 @@ function Filtros({ aplicados, mesas, onAplicar }) {
   );
 }
 
-// Opciones del menú "Cambiar estado", con el punto de color de Django
+// Opciones del menú "Cambiar estado"
 const ESTADOS_MENU = [
   { valor: "pendiente", texto: "Pendiente", punto: "pendiente" },
   { valor: "en_preparacion", texto: "En preparación", punto: "preparacion" },
@@ -94,7 +92,6 @@ export default function Comandas() {
   const porPagina = datos?.por_pagina || Number(aplicados.por_pagina) || 10;
   const puedeModificar = puede("comandas:modificar");
   const navegar = useNavigate();
-  // Menú "Cambiar estado": se ubica junto al botón y por encima de la tabla
   const [menu, setMenu] = useState(null); // {comanda, top, right, arriba}
   const confirmar = useConfirmar();
   const [error, setError] = useState("");
@@ -121,7 +118,6 @@ export default function Comandas() {
   const abrirMenu = (evento, comanda) => {
     if (menu?.comanda.id_comanda === comanda.id_comanda) return setMenu(null);
     const caja = evento.currentTarget.getBoundingClientRect();
-    // Cerca del borde de abajo, el menú se abre hacia arriba (como en Django)
     const arriba = window.innerHeight - caja.bottom < 260;
     setMenu({ comanda, top: arriba ? caja.top - 5 : caja.bottom + 5, right: window.innerWidth - caja.right, arriba });
   };
@@ -188,7 +184,7 @@ export default function Comandas() {
                     <td>{c.mozo}</td>
                     <td className="text-nowrap">
                       {dinero(c.total_comanda)}
-                      {/* Con pagos parciales, Django muestra lo que falta cobrar */}
+                      {/* Con pagos parciales*/}
                       {c.estado_comanda !== "pagado" && Number(c.total_pagado) > 0 && (
                         <small className="d-block text-secondary">Saldo: {dinero(c.saldo_pendiente)}</small>
                       )}

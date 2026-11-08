@@ -1,4 +1,4 @@
-// Inicio de sesión, con el mismo diseño que el de Django.
+// Inicio de sesión
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 
@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { api, mensajeDeError, URL_BASE } from "../services/api";
 import { AYUDA_CLAVE } from "../utils/formato";
 
-// Las ondas naranjas y blancas de la columna izquierda (copiadas del login de Django)
+// Las ondas
 function Ondas() {
   return (
     <svg className="onda-svg" viewBox="0 0 500 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

@@ -1,4 +1,4 @@
-// Listado de mesas, con el diseño de Django: filtros a la izquierda y tabla a la derecha.
+// Listado de mesas: filtros a la izquierda y tabla a la derecha.
 import { useMemo, useState } from "react";
 
 import { Cargando } from "../../components/Cargando";

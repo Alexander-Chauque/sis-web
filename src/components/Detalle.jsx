@@ -1,8 +1,4 @@
-// Piezas de las ventanas "Ver detalle", con el diseño de las pantallas de detalle de Django
-// (platos.css y empleados.css).
 import { Icono } from "./Icono";
-
-// Etiqueta chica arriba y el nombre grande: "NOMBRE DEL PLATO / Locro"
 export function CabeceraDetalle({ etiqueta, titulo, children }) {
   return (
     <div className="detalle-cabecera">
@@ -15,7 +11,7 @@ export function CabeceraDetalle({ etiqueta, titulo, children }) {
   );
 }
 
-// Recuadros grises con ícono, etiqueta y valor. "destacada" lo pinta de naranja (ej. el precio).
+// Recuadros grises con ícono, etiqueta y valor
 export function Subtarjeta({ icono, etiqueta, children, destacada, ancha }) {
   return (
     <div className={`subtarjeta ${destacada ? "subtarjeta-destacada" : ""} ${ancha ? "subtarjeta-ancha" : ""}`}>
@@ -49,7 +45,7 @@ export function SeccionDetalle({ icono, titulo, descripcion, children, extra }) 
   );
 }
 
-// Dato con etiqueta arriba y el valor en un recuadro con ícono (detalle de empleado de Django)
+// Dato con etiqueta arriba y el valor en un recuadro con ícono
 export function Dato({ etiqueta, icono, children }) {
   return (
     <div className="dato-item">

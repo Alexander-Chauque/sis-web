@@ -1,4 +1,4 @@
-// Asistencias y tipos de turno, con el diseño de los listados de Django.
+// Asistencias y tipos de turno
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -24,7 +24,7 @@ export default function Asistencias() {
   const [filtros, setFiltros] = useState({ ...FILTROS_VACIOS, pagina: 1, por_pagina: 10 });
   const consulta = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v));
   const asistencias = useCarga("/asistencias/", consulta);
-  const [ventana, setVentana] = useState(null); // {nueva: true} o la asistencia a editar
+  const [ventana, setVentana] = useState(null); 
   const [empleado, setEmpleado] = useState("");
   const [tipo, setTipo] = useState("");
   const [error, setError] = useState("");
@@ -58,7 +58,7 @@ export default function Asistencias() {
   };
 
   const anular = async (a) => {
-    // Textos del modal "¿Anular Asistencia?" de Django
+    // Textos del modal "¿Anular Asistencia?"
     const respuesta = await confirmar({
       titulo: "¿Anular asistencia?",
       subtitulo: "El registro de presentismo se quitará del historial del día.",
@@ -262,7 +262,7 @@ export function TiposAsistencia() {
   };
 
   const eliminar = async (tipo) => {
-    // Textos del modal "¿Eliminar Turno?" de Django (tipos_asistencia/listar.html)
+    // Textos del modal "¿Eliminar Turno?"
     const respuesta = await confirmar({
       titulo: "¿Eliminar turno?",
       subtitulo: "El turno dejará de estar disponible para registrar asistencias.",
