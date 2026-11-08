@@ -1,11 +1,11 @@
-// Conexión con la API de Django. Todas las pantallas piden los datos desde acá.
+// Conexión con la API de Django
 import axios from "axios";
 
-const URL_BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+export const URL_BASE = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
 const LLAVE_ACCESO = "sis_token_acceso";
 const LLAVE_RENOVACION = "sis_token_renovacion";
 
-// sessionStorage se borra al cerrar la pestaña, y la sesión no queda abierta en la PC
+
 export const tokens = {
   acceso: () => sessionStorage.getItem(LLAVE_ACCESO),
   renovacion: () => sessionStorage.getItem(LLAVE_RENOVACION),
@@ -81,7 +81,7 @@ export function mensajeDeError(error) {
   if (error.response.status === 429) {
     return "Demasiados intentos. Esperá un minuto y volvé a probar.";
   }
-  // Django devuelve los errores así: {"detail": "..."} o {"campo": ["..."]}
+  // Django devuelve los errores en un objeto con campos y mensajes, o un campo detail con el mensaje
   const datos = error.response.data;
   if (datos && typeof datos === "object") {
     if (datos.detail) return String(datos.detail);

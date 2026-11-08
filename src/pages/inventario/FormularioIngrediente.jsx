@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { Cargando } from "../components/Cargando";
-import { api, mensajeDeError } from "../services/api";
+import { Cargando } from "../../components/Cargando";
+import { Encabezado } from "../../components/Comunes";
+import { Icono } from "../../components/Icono";
+import { api, mensajeDeError } from "../../services/api";
 
 // Las mismas unidades que acepta el modelo Ingrediente en Django
 const UNIDADES = [
@@ -137,14 +139,15 @@ export default function FormularioIngrediente() {
   const fotoVisible = vistaPrevia || fotoGuardada;
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-12 col-lg-7">
-        <h1 className="titulo-marca h2 mb-3">
-          {esEdicion ? "Editar ingrediente" : "Nuevo ingrediente"}
-        </h1>
+    <div className="contenedor-formulario">
+      <Encabezado titulo={esEdicion ? "Editar ingrediente" : "Crear nuevo ingrediente"} icono={esEdicion ? "edit_square" : "add_circle"} />
 
-        <form className="card shadow-sm" onSubmit={guardar}>
-          <div className="card-body">
+      <form onSubmit={guardar}>
+        <div className="tarjeta-formulario">
+          <div className="tarjeta-titulo">
+            <Icono nombre="eco" />
+            <h2>Datos del ingrediente</h2>
+          </div>
             {error && (
               <div className="alert alert-danger" role="alert">
                 {error}
@@ -153,7 +156,7 @@ export default function FormularioIngrediente() {
 
             <div className="mb-3">
               <label htmlFor="nombre" className="form-label">
-                Nombre *
+                Nombre <span className="req">*</span>
               </label>
               <input
                 id="nombre"
@@ -169,21 +172,24 @@ export default function FormularioIngrediente() {
             <div className="row g-3 mb-3">
               <div className="col-12 col-sm-6">
                 <label htmlFor="costo" className="form-label">
-                  Costo unitario ($) *
+                  Costo unitario <span className="req">*</span>
                 </label>
-                <input
-                  id="costo"
-                  className="form-control"
-                  inputMode="decimal"
-                  required
-                  placeholder="Ej. 2500"
-                  value={costo}
-                  onChange={(e) => setCosto(e.target.value)}
-                />
+                <div className="input-con-prefijo">
+                  <span aria-hidden="true">$</span>
+                  <input
+                    id="costo"
+                    className="form-control"
+                    inputMode="decimal"
+                    required
+                    placeholder="0,00"
+                    value={costo}
+                    onChange={(e) => setCosto(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="col-12 col-sm-6">
                 <label htmlFor="unidad" className="form-label">
-                  Unidad de medida *
+                  Unidad de medida <span className="req">*</span>
                 </label>
                 <select
                   id="unidad"
@@ -237,17 +243,17 @@ export default function FormularioIngrediente() {
               )}
             </div>
 
-            <div className="d-flex justify-content-end gap-2">
-              <Link className="btn btn-outline-secondary" to="/ingredientes">
-                Cancelar
-              </Link>
-              <button type="submit" className="btn btn-marca" disabled={guardando}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
+        </div>
+
+        <div className="acciones-formulario">
+          <Link className="btn btn-outline-secondary" to="/ingredientes">
+            Cancelar
+          </Link>
+          <button type="submit" className="btn btn-marca" disabled={guardando}>
+            <Icono nombre="save" /> {guardando ? "Guardando..." : "Guardar ingrediente"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
