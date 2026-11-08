@@ -38,7 +38,7 @@ Django vuelve a comprobar el permiso en cada pedido, así que ocultar un botón 
 
 - **Inicio**: resumen del salón y accesos rápidos.
 - **Inventario**: platos (con sus ingredientes), bebidas, ingredientes, categorías de platos y tipos de bebida.
-- **Salón**: mesas (alta, edición, ocupar y liberar) y comandas (tomar pedido, editar, cambiar estado,
+- **Mesas y Comandas**: mesas (alta, edición, ocupar y liberar) y comandas (tomar pedido, editar, cambiar estado,
   cobrar total o parcial, anular, eliminar, comprobante y tickets de cocina, bar y parrilla).
 - **Finanzas**: cajas (apertura, arqueo y cierre), gastos, ventas, categorías de gasto y métodos de pago.
 - **Personal**: empleados (alta, edición, baja, reactivación y contraseña temporal), asistencias, turnos,
