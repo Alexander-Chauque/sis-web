@@ -360,8 +360,9 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
     setGuardando(true);
     try {
       const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
-      // Como en Django: se imprime el ticket y después se vuelve al listado
-      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1`);
+      navegar("/comandas", {
+        state: { aviso: esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.` },
+      });
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
@@ -382,8 +383,24 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
         <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
       )}
 
-      <Tarjeta icono="person" titulo="Mozo" className="tarjeta-mozos" extra={esEdicion ? `Mesa ${comanda.mesa_numero}` : undefined}>
-        <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
+      <Tarjeta icono="receipt_long" titulo="Datos del pedido" className="tarjeta-mozos" extra={esEdicion ? `Mesa ${comanda.mesa_numero}` : undefined}>
+        <div className="datos-pedido">
+          <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
+          <div>
+            <label htmlFor="observaciones" className="form-label">
+              Observaciones (opcional)
+            </label>
+            <textarea
+              id="observaciones"
+              className="form-control"
+              rows={3}
+              maxLength={250}
+              placeholder="Ej: es un cumpleaños, festejo de fin de año, aniversario..."
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+            />
+          </div>
+        </div>
       </Tarjeta>
 
       {!esEdicion && (
@@ -525,20 +542,6 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
                 ))}
               </ul>
             )}
-            <div className="observaciones-pedido">
-              <label htmlFor="observaciones" className="form-label">
-                Observaciones (opcional)
-              </label>
-              <textarea
-                id="observaciones"
-                className="form-control"
-                rows={2}
-                maxLength={250}
-                placeholder="Ej: traer todo junto"
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
-            </div>
             <div className="total-pedido">
               <span>Total</span>
               <strong>{dinero(total)}</strong>

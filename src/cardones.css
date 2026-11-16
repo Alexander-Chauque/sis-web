@@ -1520,12 +1520,10 @@ a.plano-mesa:hover {
   margin: 0;
 }
 
-.tarjeta-mozos .elegir-mozo legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
+.datos-pedido {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {

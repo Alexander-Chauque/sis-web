@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Encabezado, InsigniaComanda, Vacio } from "../../components/Comunes";
@@ -57,13 +57,6 @@ function Filtros({ aplicados, mesas, onAplicar }) {
   );
 }
 
-// Opciones del menú "Cambiar estado"
-const ESTADOS_MENU = [
-  { valor: "pendiente", texto: "Pendiente", punto: "pendiente" },
-  { valor: "en_preparacion", texto: "En preparación", punto: "preparacion" },
-  { valor: "entregado", texto: "Entregado", punto: "entregado" },
-];
-
 const CAMPOS = ["buscar", "estado", "mesa", "fecha_desde", "fecha_hasta", "pagina", "por_pagina"];
 
 export default function Comandas() {
@@ -91,39 +84,20 @@ export default function Comandas() {
   const datos = comandas.datos;
   const porPagina = datos?.por_pagina || Number(aplicados.por_pagina) || 10;
   const puedeModificar = puede("comandas:modificar");
-  const navegar = useNavigate();
-  const [menu, setMenu] = useState(null); // {comanda, top, right, arriba}
   const confirmar = useConfirmar();
   const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
+  // Al volver de registrar o editar una comanda llega el aviso de que se guardó
+  const { state } = useLocation();
+  const [aviso, setAviso] = useState(state?.aviso || "");
   const [enviando, setEnviando] = useState(false);
 
-  useEffect(() => {
-    if (!menu) return undefined;
-    const cerrar = () => setMenu(null);
-    const alPresionar = (e) => e.key === "Escape" && cerrar();
-    const alTocar = (e) => !e.target.closest(".menu-estado") && !e.target.closest(".btn-estado") && cerrar();
-    document.addEventListener("mousedown", alTocar);
-    document.addEventListener("keydown", alPresionar);
-    window.addEventListener("scroll", cerrar, true);
-    window.addEventListener("resize", cerrar);
-    return () => {
-      document.removeEventListener("mousedown", alTocar);
-      document.removeEventListener("keydown", alPresionar);
-      window.removeEventListener("scroll", cerrar, true);
-      window.removeEventListener("resize", cerrar);
-    };
-  }, [menu]);
-
-  const abrirMenu = (evento, comanda) => {
-    if (menu?.comanda.id_comanda === comanda.id_comanda) return setMenu(null);
-    const caja = evento.currentTarget.getBoundingClientRect();
-    const arriba = window.innerHeight - caja.bottom < 260;
-    setMenu({ comanda, top: arriba ? caja.top - 5 : caja.bottom + 5, right: window.innerWidth - caja.right, arriba });
+  // Anular desde el listado: pide el motivo y libera la mesa
+  const anular = async (comanda) => {
+    const respuesta = await confirmar(opcionesAnularComanda(comanda));
+    if (respuesta) cambiarEstado(comanda, "anulado", respuesta.motivo);
   };
 
   const cambiarEstado = async (comanda, estado, motivoAnulacion) => {
-    setMenu(null);
     setError("");
     setEnviando(true);
     try {
@@ -195,23 +169,6 @@ export default function Comandas() {
                     <td className="text-nowrap">{fechaHora(c.fecha_hora)}</td>
                     <td>
                       <div className="acciones-tabla">
-                        {c.esta_abierta && puedeModificar ? (
-                          <button
-                            type="button"
-                            className="btn-icon btn-estado"
-                            title="Cambiar estado"
-                            aria-label={`Cambiar el estado de la comanda #${c.id_comanda}`}
-                            aria-haspopup="menu"
-                            aria-expanded={menu?.comanda.id_comanda === c.id_comanda}
-                            onClick={(e) => abrirMenu(e, c)}
-                          >
-                            <Icono nombre="published_with_changes" />
-                          </button>
-                        ) : (
-                          <span className="btn-icon btn-bloqueado" title={c.esta_abierta ? "Sin permiso para cambiar el estado" : "Comanda cerrada"}>
-                            <Icono nombre="lock" />
-                          </span>
-                        )}
                         <BotonAccion tipo="ver" titulo={`Ver detalle de la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}`} />
                         {c.esta_abierta && puedeModificar ? (
                           <BotonAccion tipo="editar" titulo={`Editar la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}/editar`} />
@@ -221,7 +178,16 @@ export default function Comandas() {
                           </span>
                         )}
                         <BotonAccion tipo="eliminar" icono="receipt" titulo={`Comprobante de la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}/comprobante`} />
-                        <BotonAccion tipo="activar" icono="print" titulo={`Ticket de cocina de la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}/tickets`} />
+                        {c.esta_abierta && puedeModificar && Number(c.total_pagado) === 0 ? (
+                          <BotonAccion tipo="desactivar" icono="block" titulo={`Anular la comanda #${c.id_comanda}`} disabled={enviando} onClick={() => anular(c)} />
+                        ) : (
+                          <span
+                            className="btn-icon btn-bloqueado"
+                            title={!c.esta_abierta ? "Comanda cerrada" : Number(c.total_pagado) > 0 ? "Tiene pagos: no se puede anular" : "Sin permiso para anular"}
+                          >
+                            <Icono nombre="block" />
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -235,47 +201,6 @@ export default function Comandas() {
           <PaginacionNumeros pagina={datos.pagina} porPagina={datos.por_pagina} total={datos.total} nombre="comandas" onPagina={(p) => cambiar({ pagina: String(p) }, true)} />
         )}
       </ListadoLayout>
-
-      {menu && (
-        <div
-          className={`menu-estado ${menu.arriba ? "menu-estado-arriba" : ""}`}
-          role="menu"
-          style={{ top: menu.top, right: menu.right }}
-        >
-          {ESTADOS_MENU.map((e) => (
-            <button
-              key={e.valor}
-              type="button"
-              role="menuitem"
-              className="menu-estado-item"
-              disabled={enviando || menu.comanda.estado_comanda === e.valor}
-              onClick={() => cambiarEstado(menu.comanda, e.valor)}
-            >
-              <span className={`punto-estado ${e.punto}`} /> {e.texto}
-            </button>
-          ))}
-          {/* El cobro se hace desde el detalle, donde está la ventana de pago */}
-          <button type="button" role="menuitem" className="menu-estado-item" onClick={() => navegar(`/comandas/${menu.comanda.id_comanda}?cobrar=1`)}>
-            <span className="punto-estado pagado" /> Pagado
-          </button>
-          <hr className="menu-estado-separador" />
-          <button
-            type="button"
-            role="menuitem"
-            className="menu-estado-item texto-peligro"
-            disabled={Number(menu.comanda.total_pagado) > 0}
-            title={Number(menu.comanda.total_pagado) > 0 ? "La comanda tiene pagos registrados" : undefined}
-            onClick={async () => {
-              const comanda = menu.comanda;
-              setMenu(null);
-              const respuesta = await confirmar(opcionesAnularComanda(comanda));
-              if (respuesta) cambiarEstado(comanda, "anulado", respuesta.motivo);
-            }}
-          >
-            <span className="punto-estado anulado" /> Anular comanda
-          </button>
-        </div>
-      )}
 
     </div>
   );
