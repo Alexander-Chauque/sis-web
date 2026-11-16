@@ -1535,3 +1535,39 @@ a.plano-mesa:hover {
     transform: none;
   }
 }
+
+/* Notas rápidas directo en la tarjeta del producto */
+.producto-card {
+  align-items: flex-start;
+}
+
+.producto-card .boton-agregar {
+  align-self: center;
+}
+
+.notas-en-tarjeta {
+  gap: 4px;
+  margin-top: 8px;
+  cursor: default;
+}
+
+.notas-en-tarjeta .nota-rapida {
+  min-height: 26px;
+  padding: 2px 9px;
+  font-size: 12px;
+}
+
+.nota-otra {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--acento-texto);
+}
+
+.nota-otra .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.tarjeta-producto-info {
+  flex: 1;
+}

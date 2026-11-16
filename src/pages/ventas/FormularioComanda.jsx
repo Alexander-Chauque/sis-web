@@ -458,30 +458,37 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
                   >
                     {cantidad > 0 && <span className="prod-en-pedido">{cantidad} en el pedido</span>}
                     <div className="tarjeta-producto-info">
-                      <div className="producto-nombre-fila">
-                        <strong>{p.nombre}</strong>
-                        {cantidad > 0 && (
-                          <button
-                            type="button"
-                            className={`btn-nota-producto ${notas.length ? "con-nota" : ""}`}
-                            title="Nota para este producto"
-                            aria-label={`Nota para ${p.nombre}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setNotasDe(clave(p));
-                            }}
-                          >
-                            <Icono nombre="edit_note" /> Nota
-                          </button>
-                        )}
-                      </div>
+                      <strong>{p.nombre}</strong>
                       <small>
                         {p.tipo === "plato" ? "Platos" : "Bebidas"} | {p.categoria}
                       </small>
-                      {notas.length > 0 && (
+                      <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
+                      {cantidad > 0 && (
+                        // Notas rápidas directo en la tarjeta: se aplican a la primera línea del producto
+                        <div className="notas-rapidas notas-en-tarjeta" role="group" aria-label={`Notas para ${p.nombre}`} onClick={(e) => e.stopPropagation()}>
+                          {NOTAS[p.tipo].map((nota) => {
+                            const activa = tieneNota(lineas[0].nota, nota);
+                            return (
+                              <button
+                                key={nota}
+                                type="button"
+                                className={`nota-rapida ${activa ? "activa" : ""}`}
+                                aria-pressed={activa}
+                                onClick={() => cambiarNota(lineas[0], alternarNota(lineas[0].nota, nota))}
+                              >
+                                {nota}
+                              </button>
+                            );
+                          })}
+                          <button type="button" className="nota-rapida nota-otra" onClick={() => setNotasDe(clave(p))} title="Escribir otra nota o separar unidades">
+                            <Icono nombre="edit_note" /> Otra
+                          </button>
+                        </div>
+                      )}
+                      {/* Se escribe la nota cuando hay unidades separadas o texto propio (que no está en los botones) */}
+                      {(lineas.length > 1 || partesNota(lineas[0]?.nota || "").some((n) => !NOTAS[p.tipo].includes(n.toLowerCase()))) && (
                         <span className="producto-notas">{notas.map((i) => `${i.cantidad} ${i.nota}`).join(" · ")}</span>
                       )}
-                      <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
                     </div>
                     <button
                       type="button"
