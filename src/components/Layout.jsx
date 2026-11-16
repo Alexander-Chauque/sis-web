@@ -1,11 +1,11 @@
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { Cargando } from "./Cargando";
 import { Icono } from "./Icono";
 import { ProveedorMensajes } from "./Mensajes";
-import { MENU, ubicar } from "./menu";
+import { MENU } from "./menu";
 
 const ANIO = new Date().getFullYear();
 
@@ -177,45 +177,17 @@ function MenuUsuario({ usuario, cerrarSesion }) {
   );
 }
 
-function Pie({ ruta }) {
-  const { grupo: grupoMenu, opcion } = ubicar(ruta);
-  // Algunas pantallas tienen su propio nombre de módulo en el pie, como en Django
-  const grupo = opcion?.pie || grupoMenu;
+// Pie de página: una sola línea discreta, como en Django
+function Pie() {
   return (
-    <footer className="footer no-imprimir">
-      <div className="footer-container">
-        <div className="footer-identidad">
-          <img src="/img/favicon.png" alt="" className="footer-logo-img" />
-          <div className="footer-logo-texto">
-            <h3>Los Cardones</h3>
-            <p>Sistema de Gestión Gastronómica</p>
-            <p className="footer-ubicacion">Salta · Argentina</p>
-          </div>
-        </div>
-        <div className="footer-modulo">
-          <div className="footer-modulo-header">
-            <Icono nombre="apps" />
-            <span className="footer-modulo-label">Módulo actual</span>
-          </div>
-          <h4 className="footer-modulo-nombre">{grupo.titulo.toUpperCase()}</h4>
-          <p className="footer-modulo-descripcion">{grupo.descripcion.toUpperCase()}</p>
-        </div>
-      </div>
-      <div className="footer-inferior">
-        <div className="footer-acceso">
-          <Icono nombre="verified_user" />
-          <span>Acceso exclusivo para personal autorizado</span>
-        </div>
-        <div className="footer-copyright">© {ANIO} Los Cardones · Todos los derechos reservados</div>
-      </div>
-      <div className="footer-borde" />
+    <footer className="footer pie-simple no-imprimir">
+      <p>Los Cardones · Sistema de gestión gastronómica · {ANIO}</p>
     </footer>
   );
 }
 
 export default function Layout() {
   const { usuario, cerrarSesion, puede } = useAuth();
-  const { pathname } = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const grupos = MENU.map((g) => ({ ...g, opciones: g.opciones.filter((o) => puede(o.permiso)) })).filter((g) => g.opciones.length);
@@ -258,7 +230,7 @@ export default function Layout() {
             </div>
           </ProveedorMensajes>
         </main>
-        <Pie ruta={pathname} />
+        <Pie />
       </div>
     </>
   );

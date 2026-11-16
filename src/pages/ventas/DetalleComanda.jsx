@@ -177,10 +177,11 @@ export default function DetalleComanda() {
                 </thead>
                 <tbody>
                   {comanda.items.map((item, n) => (
-                    <tr key={`${item.tipo}-${item.id ?? `eliminado-${n}`}`}>
+                    <tr key={n}>
                       <td>
                         {item.nombre}
                         {!item.disponible && <span className="small text-danger"> (ya no disponible)</span>}
+                        {item.observacion && <span className="d-block small text-secondary fst-italic">{item.observacion}</span>}
                       </td>
                       <td className="text-end">{item.cantidad}</td>
                       <td className="text-end text-nowrap">{dinero(item.precio)}</td>

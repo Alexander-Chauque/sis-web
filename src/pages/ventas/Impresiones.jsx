@@ -51,7 +51,7 @@ export function Comprobante() {
           </thead>
           <tbody>
             {comanda.items.map((item, n) => (
-              <tr key={`${item.tipo}-${item.id ?? `eliminado-${n}`}`}>
+              <tr key={n}>
                 <td>{item.cantidad}</td>
                 <td>
                   {item.nombre}
@@ -180,10 +180,13 @@ export function Tickets() {
                   </tr>
                 </thead>
                 <tbody>
-                  {t.productos.map((p) => (
-                    <tr key={`${p.tipo}-${p.id}`}>
+                  {t.productos.map((p, n) => (
+                    <tr key={n}>
                       <td className="fw-bold text-center">{p.cantidad}</td>
-                      <td>{p.nombre}</td>
+                      <td>
+                        {p.nombre}
+                        {p.observacion && <span className="nota-producto">» {p.observacion}</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

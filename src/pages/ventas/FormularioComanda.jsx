@@ -14,6 +14,65 @@ import { ELEMENTOS, MESAS, PILARES, PROPORCION, posicion, ZONAS } from "./planoS
 
 const MAXIMO = 999;
 const clave = (item) => `${item.tipo}-${item.id}`;
+
+// Notas rápidas por tipo de producto; las opuestas se reemplazan entre sí
+const NOTAS = {
+  plato: ["sin sal", "sin cebolla", "bien cocido", "jugoso", "sin picante"],
+  bebida: ["sin hielo", "con hielo", "natural", "con limón"],
+};
+const OPUESTAS = { "sin hielo": "con hielo", "con hielo": "sin hielo", "bien cocido": "jugoso", jugoso: "bien cocido" };
+const partesNota = (texto) =>
+  texto
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+const tieneNota = (texto, nota) => partesNota(texto).some((p) => p.toLowerCase() === nota);
+
+function alternarNota(texto, nota) {
+  let lista = partesNota(texto);
+  if (tieneNota(texto, nota)) {
+    lista = lista.filter((p) => p.toLowerCase() !== nota);
+  } else {
+    const opuesta = OPUESTAS[nota];
+    if (opuesta) lista = lista.filter((p) => p.toLowerCase() !== opuesta);
+    lista.push(nota);
+  }
+  return lista.join(", ").slice(0, 120);
+}
+
+// Cada línea del carrito tiene su propia clave: el mismo producto puede ir en dos líneas con notas distintas
+let siguienteLinea = 1;
+const nuevaLinea = (datos) => ({ ...datos, linea: siguienteLinea++ });
+
+const iniciales = (nombre = "") =>
+  nombre
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+// Mozos: un botón por mozo, se elige con un toque
+function ElegirMozo({ mozos, elegido, onElegir }) {
+  if (!mozos) return <Cargando />;
+  return (
+    <fieldset className="elegir-mozo">
+      <legend className="form-label">Mozo</legend>
+      <div className="mozos-opciones">
+        {mozos.map((m) => (
+          <label key={m.id} className="mozo-opcion" title={m.cargo}>
+            <input type="radio" name="mozo" value={m.id} checked={String(m.id) === String(elegido)} onChange={() => onElegir(String(m.id))} />
+            <span className="mozo-iniciales" aria-hidden="true">
+              {iniciales(m.nombre)}
+            </span>
+            {m.nombre}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 const PESTANAS = [
   { valor: "todos", texto: "Todos" },
   { valor: "plato", texto: "Platos", icono: "restaurant" },
@@ -25,6 +84,7 @@ export default function FormularioComanda() {
   const productos = useCarga("/comandas/productos/");
   const mesas = useCarga(id ? null : "/mesas/");
   const comanda = useCarga(id ? `/comandas/${id}/` : null);
+  const mozos = useCarga("/comandas/mozos/");
 
   if (productos.cargando || comanda.cargando) return <Cargando />;
   const error = productos.error || comanda.error;
@@ -33,7 +93,7 @@ export default function FormularioComanda() {
     return <Alerta tipo="warning">La comanda #{id} está cerrada: no se puede editar.</Alerta>;
   }
   // El editor se crea recién con los datos cargados: así arranca con lo que ya tenía la comanda
-  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} />;
+  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} />;
 }
 
 // Tarjeta con título e ícono, como las de la pantalla de comandas de Django
@@ -174,17 +234,21 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
   );
 }
 
-function Editor({ id, productos, mesas, comanda }) {
+function Editor({ id, productos, mesas, comanda, mozos }) {
   const esEdicion = !!id;
   const { usuario } = useAuth();
   const [parametros] = useSearchParams();
   const navegar = useNavigate();
 
   const [mesa, setMesa] = useState(parametros.get("mesa") || "");
+  // Por defecto, el que está usando el sistema (o el mozo que ya tenía la comanda)
+  const [mozo, setMozo] = useState(String((esEdicion ? comanda.mozo_id : usuario?.id_empleado) ?? ""));
   const [observaciones, setObservaciones] = useState(comanda?.observaciones_comanda || "");
-  // [{tipo, id, nombre, precio, cantidad}]
+  // [{linea, tipo, id, nombre, precio, cantidad, nota}]
   const [pedido, setPedido] = useState(() =>
-    (comanda?.items || []).map(({ tipo: t, id: i, nombre, precio, cantidad }) => ({ tipo: t, id: i, nombre, precio, cantidad })),
+    (comanda?.items || []).map(({ tipo: t, id: i, nombre, precio, cantidad, observacion }) =>
+      nuevaLinea({ tipo: t, id: i, nombre, precio, cantidad, nota: observacion || "" }),
+    ),
   );
   const [buscar, setBuscar] = useState("");
   const [tipo, setTipo] = useState("todos");
@@ -193,11 +257,16 @@ function Editor({ id, productos, mesas, comanda }) {
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  // Con pagos, la web solo permite agregar: se recuerda lo mínimo de cada producto
+  // Con pagos, la web solo permite agregar: se recuerda lo mínimo de cada producto (sumando sus líneas)
   const minimos = useMemo(() => {
     if (!comanda?.pagos.length) return {};
-    return Object.fromEntries(comanda.items.map((i) => [clave(i), i.cantidad]));
+    const suma = {};
+    comanda.items.forEach((i) => {
+      suma[clave(i)] = (suma[clave(i)] || 0) + i.cantidad;
+    });
+    return suma;
   }, [comanda]);
+  const totalDe = (lista, k) => lista.filter((i) => clave(i) === k).reduce((s, i) => s + i.cantidad, 0);
 
   const visibles = useMemo(() => {
     const texto = normalizar(buscar.trim());
@@ -218,22 +287,40 @@ function Editor({ id, productos, mesas, comanda }) {
 
   const total = pedido.reduce((suma, i) => suma + Number(i.precio) * i.cantidad, 0);
 
+  // Suma uno a la línea del producto que no tiene nota; si no hay, abre una línea nueva
   const agregar = (producto) =>
     setPedido((actual) => {
-      const existe = actual.find((i) => clave(i) === clave(producto));
+      const existe = actual.find((i) => clave(i) === clave(producto) && !i.nota);
       if (existe) return actual.map((i) => (i === existe ? { ...i, cantidad: Math.min(MAXIMO, i.cantidad + 1) } : i));
-      return [...actual, { tipo: producto.tipo, id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: 1 }];
+      return [...actual, nuevaLinea({ tipo: producto.tipo, id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: 1, nota: "" })];
     });
 
-  const cambiarCantidad = (item, cantidad) => {
+  // ¿Se puede bajar esta línea a esa cantidad sin quedar debajo de lo ya cobrado?
+  const permitido = (item, cantidad) => {
     const minimo = minimos[clave(item)] || 0;
-    if (cantidad < Math.max(minimo, 1)) {
-      if (minimo) return;
-      setPedido((actual) => actual.filter((i) => clave(i) !== clave(item)));
+    return totalDe(pedido, clave(item)) - item.cantidad + cantidad >= minimo;
+  };
+
+  const cambiarCantidad = (item, cantidad) => {
+    if (!permitido(item, Math.max(cantidad, 0))) return;
+    if (cantidad < 1) {
+      setPedido((actual) => actual.filter((i) => i.linea !== item.linea));
       return;
     }
-    setPedido((actual) => actual.map((i) => (clave(i) === clave(item) ? { ...i, cantidad: Math.min(MAXIMO, cantidad) } : i)));
+    setPedido((actual) => actual.map((i) => (i.linea === item.linea ? { ...i, cantidad: Math.min(MAXIMO, cantidad) } : i)));
   };
+
+  const cambiarNota = (item, nota) => setPedido((actual) => actual.map((i) => (i.linea === item.linea ? { ...i, nota } : i)));
+
+  // Separa una unidad en otra línea, para darle otra nota (ej: 2 con hielo y 1 sin hielo)
+  const separar = (item) =>
+    setPedido((actual) => {
+      const lugar = actual.findIndex((i) => i.linea === item.linea);
+      const nueva = nuevaLinea({ ...item, cantidad: 1, nota: "" });
+      const copia = actual.map((i) => (i.linea === item.linea ? { ...i, cantidad: i.cantidad - 1 } : i));
+      copia.splice(lugar + 1, 0, nueva);
+      return copia;
+    });
 
   const guardar = async (evento) => {
     evento.preventDefault();
@@ -242,7 +329,8 @@ function Editor({ id, productos, mesas, comanda }) {
     if (!pedido.length) return setError("Agregá al menos un plato o una bebida.");
     const cuerpo = {
       observaciones: observaciones.trim(),
-      items: pedido.map(({ tipo: t, id: i, cantidad }) => ({ tipo: t, id: i, cantidad })),
+      items: pedido.map(({ tipo: t, id: i, cantidad, nota }) => ({ tipo: t, id: i, cantidad, observacion: nota.trim() })),
+      ...(mozo ? { mozo: Number(mozo) } : {}),
     };
     setGuardando(true);
     try {
@@ -264,7 +352,7 @@ function Editor({ id, productos, mesas, comanda }) {
         icono={esEdicion ? "edit_square" : "add"}
         volver={volver}
       />
-      <Notificar texto={error || mesas.error} onListo={() => setError("")} />
+      <Notificar texto={error || mesas.error || mozos.error} onListo={() => setError("")} />
       {!!Object.keys(minimos).length && (
         <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
       )}
@@ -287,18 +375,7 @@ function Editor({ id, productos, mesas, comanda }) {
               </div>
             )}
 
-            <div className="mb-3">
-              <span className="form-label d-block">Mozo</span>
-              <div className="tarjeta-mozo">
-                <span className="mozo-avatar">
-                  <Icono nombre="person" />
-                </span>
-                <span>
-                  <strong className="d-block">{esEdicion ? comanda.mozo : usuario?.nombre}</strong>
-                  {!esEdicion && usuario?.cargo && <span className="mozo-cargo">{usuario.cargo}</span>}
-                </span>
-              </div>
-            </div>
+            <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
 
             <div>
               <label htmlFor="observaciones" className="form-label">
@@ -379,7 +456,7 @@ function Editor({ id, productos, mesas, comanda }) {
             ) : (
               <ul className="lista-pedido">
                 {pedido.map((item) => (
-                  <li key={clave(item)}>
+                  <li key={item.linea} className="item-carrito">
                     <div className="flex-grow-1 min-w-0">
                       <div className="fw-semibold text-truncate">{item.nombre}</div>
                       <div className="small text-secondary">
@@ -388,7 +465,7 @@ function Editor({ id, productos, mesas, comanda }) {
                     </div>
                     <div className="contador-cantidad">
                       <button type="button" aria-label={`Quitar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad - 1)}>
-                        <Icono nombre={item.cantidad === 1 && !minimos[clave(item)] ? "delete" : "remove"} />
+                        <Icono nombre={item.cantidad === 1 && permitido(item, 0) ? "delete" : "remove"} />
                       </button>
                       <input
                         inputMode="numeric"
@@ -402,6 +479,38 @@ function Editor({ id, productos, mesas, comanda }) {
                       <button type="button" aria-label={`Agregar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad + 1)}>
                         <Icono nombre="add" />
                       </button>
+                    </div>
+                    <div className="nota-linea">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm nota-item"
+                        maxLength={120}
+                        aria-label={`Nota para ${item.nombre}`}
+                        placeholder={item.tipo === "bebida" ? "Nota para el bar (ej: sin hielo)" : "Nota para la cocina (ej: sin sal)"}
+                        value={item.nota}
+                        onChange={(e) => cambiarNota(item, e.target.value)}
+                      />
+                      <div className="notas-rapidas" role="group" aria-label={`Notas rápidas para ${item.nombre}`}>
+                        {NOTAS[item.tipo].map((nota) => {
+                          const activa = tieneNota(item.nota, nota);
+                          return (
+                            <button
+                              key={nota}
+                              type="button"
+                              className={`nota-rapida ${activa ? "activa" : ""}`}
+                              aria-pressed={activa}
+                              onClick={() => cambiarNota(item, alternarNota(item.nota, nota))}
+                            >
+                              {nota}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {item.cantidad > 1 && (
+                        <button type="button" className="btn-separar" onClick={() => separar(item)}>
+                          <Icono nombre="call_split" /> Separar una con otra nota
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
