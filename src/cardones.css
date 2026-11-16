@@ -2351,3 +2351,101 @@ a {
 .contenido a.inicio-mesa:hover {
   color: var(--acento-texto);
 }
+
+/* ---------- Inicio de sesión con el estilo del sistema ---------- */
+.login-container,
+.login-container :is(input, button, label, p, a) {
+  font-family: var(--fuente-ui);
+}
+
+.login-container .form-contenido h1 {
+  font-family: var(--fuente-titulos);
+  letter-spacing: 0.01em;
+}
+
+.login-container .subtitulo-login {
+  font-size: 15px;
+}
+
+.login-container .grupo-campo-login label {
+  color: var(--texto);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-container .input-con-icono {
+  min-height: 44px;
+  border-color: var(--borde);
+  border-radius: var(--radio-control);
+  background-color: var(--fondo-panel);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.login-container .input-con-icono:hover {
+  border-color: #d3d5da;
+}
+
+.login-container .input-con-icono:focus-within {
+  border-color: var(--acento);
+  box-shadow: var(--foco-anillo);
+}
+
+.login-container .input-con-icono input {
+  padding: 10px;
+  font-size: 15px;
+}
+
+.login-container .olvide {
+  color: var(--acento-texto);
+  font-size: 14px;
+}
+
+.login-container .olvide:hover {
+  color: var(--acento-hover);
+}
+
+.login-container .btn-login {
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: var(--radio-control);
+  background-color: var(--acento);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: normal;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.login-container .btn-login:hover:not(:disabled) {
+  background-color: var(--acento-hover);
+  transform: none;
+}
+
+.login-container .btn-login:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.login-container .btn-volver-login {
+  min-height: 42px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-control);
+  color: var(--texto);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.login-container .btn-volver-login:hover {
+  border-color: var(--borde);
+  background-color: var(--topbar-boton);
+  color: var(--texto);
+}
+
+.login-container .ayuda-admin {
+  border-radius: 10px;
+}
+
+.login-container .alerta-error {
+  border-radius: 10px;
+}
