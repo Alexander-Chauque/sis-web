@@ -7,11 +7,11 @@ import { Alerta } from "../../components/Comunes";
 import { useCarga } from "../../hooks/useCarga";
 import { dinero, fecha, fechaHora } from "../../utils/formato";
 
-function Acciones({ id, children, volver, aviso }) {
+function Acciones({ id, children, volver, estado }) {
   return (
     <div className="d-flex flex-wrap justify-content-center gap-2 my-4 no-imprimir">
       {children}
-      <Link className="btn btn-outline-secondary" to={volver || `/comandas/${id}`} state={volver && aviso ? { aviso } : undefined}>
+      <Link className="btn btn-outline-secondary" to={volver || `/comandas/${id}`} state={volver ? estado : undefined}>
         {volver ? "Volver a las comandas" : "Volver a la comanda"}
       </Link>
     </div>
@@ -113,12 +113,15 @@ export function Tickets() {
   const navegar = useNavigate();
   // Recién guardada la comanda: se imprime sola y después vuelve al listado
   const alGuardar = parametros.get("imprimir") === "1";
-  const aviso = useLocation().state?.aviso;
+  const { aviso, resaltar } = useLocation().state || {};
+  const modificada = parametros.get("modificada") === "1";
+  // Al volver al listado: el aviso de que se guardó y la comanda resaltada
+  const estadoListado = { aviso, resaltar };
   const impresa = useRef(false);
 
   useEffect(() => {
     if (!alGuardar || !comanda || impresa.current) return undefined;
-    const alTerminar = () => navegar("/comandas", { replace: true, state: { aviso } });
+    const alTerminar = () => navegar("/comandas", { replace: true, state: { aviso, resaltar } });
     window.addEventListener("afterprint", alTerminar, { once: true });
     const espera = setTimeout(() => {
       impresa.current = true;
@@ -128,7 +131,7 @@ export function Tickets() {
       clearTimeout(espera);
       window.removeEventListener("afterprint", alTerminar);
     };
-  }, [alGuardar, comanda, navegar, aviso]);
+  }, [alGuardar, comanda, navegar, aviso, resaltar]);
 
   if (cargando) return <Cargando />;
   if (!comanda) return <Alerta>{error}</Alerta>;
@@ -172,6 +175,7 @@ export function Tickets() {
                 </div>
               </div>
               {anulada && <p className="aviso-anulada">COMANDA ANULADA: NO PREPARAR</p>}
+              {modificada && !anulada && <p className="aviso-anulada aviso-modificada">COMANDA MODIFICADA</p>}
               <hr className="corte" />
               <table className="w-100 tabla-ticket">
                 <thead>
@@ -207,7 +211,7 @@ export function Tickets() {
         ))}
         {!tickets.length && <p className="text-center">Esta comanda no tiene productos para preparar.</p>}
       </div>
-      <Acciones id={id} volver={alGuardar ? "/comandas" : undefined} aviso={aviso}>
+      <Acciones id={id} volver={alGuardar ? "/comandas" : undefined} estado={estadoListado}>
         {tickets.length > 1 && (
           <button type="button" className="btn btn-marca" onClick={() => window.print()}>
             Imprimir los {tickets.length} tickets

@@ -89,6 +89,7 @@ export default function Comandas() {
   // Al volver de registrar o editar una comanda llega el aviso de que se guardó
   const { state } = useLocation();
   const [aviso, setAviso] = useState(state?.aviso || "");
+  const resaltar = state?.resaltar;
   const [enviando, setEnviando] = useState(false);
 
   // Anular desde el listado: pide el motivo y libera la mesa
@@ -152,7 +153,7 @@ export default function Comandas() {
               </thead>
               <tbody className={comandas.cargando ? "opacity-50" : ""}>
                 {datos.resultados.map((c) => (
-                  <tr key={c.id_comanda}>
+                  <tr key={c.id_comanda} className={c.id_comanda === resaltar ? "fila-resaltada" : undefined}>
                     <td className="fw-semibold">{c.id_comanda}</td>
                     <td>Mesa {c.mesa_numero}</td>
                     <td>{c.mozo}</td>

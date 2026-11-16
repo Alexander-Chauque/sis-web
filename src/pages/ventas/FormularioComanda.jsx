@@ -86,6 +86,8 @@ export default function FormularioComanda() {
   const mesas = useCarga(id ? null : "/mesas/");
   const comanda = useCarga(id ? `/comandas/${id}/` : null);
   const mozos = useCarga("/comandas/mozos/");
+  // Comandas abiertas: para el panel de las mesas con pedido, la espera y "Tus mesas"
+  const abiertas = useCarga(id ? null : "/comandas/", { abiertas: "1" });
 
   if (productos.cargando || comanda.cargando) return <Cargando />;
   const error = productos.error || comanda.error;
@@ -94,7 +96,7 @@ export default function FormularioComanda() {
     return <Alerta tipo="warning">La comanda #{id} está cerrada: no se puede editar.</Alerta>;
   }
   // El editor se crea recién con los datos cargados: así arranca con lo que ya tenía la comanda
-  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} />;
+  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} abiertas={abiertas.datos} />;
 }
 
 // Tarjeta con título e ícono, como las de la pantalla de comandas de Django
@@ -118,17 +120,138 @@ function estadoDeMesa(mesa) {
   return mesa.estado_mesa ? "libre" : "sin-pedido";
 }
 
-// Plano del local: una mesa libre se elige con un toque; una con pedido lleva a su comanda
-function PlanoMesas({ mesas, elegida, onElegir }) {
+// Minutos desde que se tomó el pedido, como en Django: 25', 3h o 2d
+const MINUTOS_DEMORA = 30;
+const minutosDesde = (fecha, ahora) => Math.max(0, Math.floor((ahora - new Date(fecha).getTime()) / 60000));
+const textoEspera = (m) => (m < 60 ? `${m}'` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`);
+const textoEsperaLargo = (m) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} días`);
+// Se demora lo que todavía no se entregó
+const estaDemorada = (c, m) => ["pendiente", "en_preparacion"].includes(c.estado_comanda) && m >= MINUTOS_DEMORA;
+const horaDe = (fecha) => new Date(fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+// Reloj que avanza cada minuto, para la espera de las mesas
+function useMinuto() {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const reloj = setInterval(() => setAhora(Date.now()), 60000);
+    return () => clearInterval(reloj);
+  }, []);
+  return ahora;
+}
+
+// Panel de una mesa con pedido: agregar productos, cobrar o ver la comanda
+function PanelMesa({ lugar, comanda, ahora, onCerrar }) {
   const { puede } = useAuth();
+  const boton = useRef(null);
+  const cerrar = useRef(onCerrar);
+  useEffect(() => {
+    cerrar.current = onCerrar;
+  });
+  useEffect(() => {
+    boton.current?.focus();
+    const alPresionar = (e) => e.key === "Escape" && cerrar.current();
+    document.addEventListener("keydown", alPresionar);
+    return () => document.removeEventListener("keydown", alPresionar);
+  }, []);
+  const minutos = minutosDesde(comanda.fecha_hora, ahora);
+  const puedeModificar = puede("comandas:modificar");
+  const saldo = Number(comanda.saldo_pendiente ?? comanda.total_comanda);
+
+  return createPortal(
+    <>
+      <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="panel-mesa-titulo" onClick={(e) => e.target === e.currentTarget && onCerrar()}>
+        <div className="modal-dialog modal-dialog-centered panel-mesa">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="modal-icono panel-mesa-icono" aria-hidden="true">
+                <Icono nombre="table_restaurant" />
+              </div>
+              <div className="modal-titulos">
+                <h2 className="modal-title" id="panel-mesa-titulo">
+                  Mesa {lugar.numero}
+                </h2>
+                <p className="modal-subtitulo">
+                  {lugar.mesa.ubicacion_nombre} · Comanda #{comanda.id_comanda}
+                </p>
+              </div>
+              <button type="button" className="btn-cerrar-modal" aria-label="Cerrar" onClick={onCerrar}>
+                <Icono nombre="close" />
+              </button>
+            </div>
+            <div className="modal-body">
+              <dl className="panel-mesa-datos">
+                <div>
+                  <dt>Mozo</dt>
+                  <dd>{comanda.mozo}</dd>
+                </div>
+                <div>
+                  <dt>Desde</dt>
+                  <dd>{horaDe(comanda.fecha_hora)} h</dd>
+                </div>
+                <div>
+                  <dt>Estado</dt>
+                  <dd>{comanda.estado_nombre}</dd>
+                </div>
+                <div>
+                  <dt>Esperando</dt>
+                  <dd className={estaDemorada(comanda, minutos) ? "panel-mesa-demorada" : ""}>{textoEsperaLargo(minutos)}</dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>{dinero(comanda.total_comanda)}</dd>
+                </div>
+                <div>
+                  <dt>Falta pagar</dt>
+                  <dd className="panel-mesa-saldo">{dinero(saldo)}</dd>
+                </div>
+              </dl>
+              <div className="panel-mesa-acciones">
+                {puedeModificar && (
+                  <Link ref={boton} to={`/comandas/${comanda.id_comanda}/editar`} className="btn btn-marca panel-mesa-boton">
+                    <Icono nombre="add_shopping_cart" /> Agregar productos
+                  </Link>
+                )}
+                {puedeModificar && saldo > 0 && (
+                  <Link to={`/comandas/${comanda.id_comanda}?cobrar=1`} className="btn btn-outline-secondary panel-mesa-boton">
+                    <Icono nombre="payments" /> Cobrar
+                  </Link>
+                )}
+                <Link to={`/comandas/${comanda.id_comanda}`} className="panel-mesa-ver">
+                  Ver la comanda completa
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>,
+    document.body,
+  );
+}
+
+// Plano del local: una mesa libre se elige con un toque; una con pedido abre su panel
+function PlanoMesas({ mesas, abiertas, elegida, onElegir }) {
+  const { usuario } = useAuth();
+  const ahora = useMinuto();
+  const [panel, setPanel] = useState(null); // número de la mesa con el panel abierto
   if (!mesas) return <Cargando />;
   const porNumero = new Map(mesas.map((m) => [m.numero_mesa, m]));
+  const comandaDe = new Map((abiertas || []).map((c) => [c.id_comanda, c]));
   const enPlano = new Set(MESAS.map((m) => m.numero));
   const fuera = mesas.filter((m) => !enPlano.has(m.numero_mesa) && ["libre", "sin-pedido"].includes(estadoDeMesa(m)));
-  const lugares = MESAS.map((lugar) => ({ ...lugar, mesa: porNumero.get(lugar.numero), estado: estadoDeMesa(porNumero.get(lugar.numero)) }));
+  const lugares = MESAS.map((lugar) => {
+    const mesa = porNumero.get(lugar.numero);
+    return { ...lugar, mesa, estado: estadoDeMesa(mesa), comanda: mesa?.comanda_abierta ? comandaDe.get(mesa.comanda_abierta) : null };
+  });
   const cuantas = (estado) => lugares.filter((l) => l.estado === estado).length;
+  const demoradas = lugares.filter((l) => l.comanda && estaDemorada(l.comanda, minutosDesde(l.comanda.fecha_hora, ahora))).length;
   const actual = mesas.find((m) => String(m.id_mesa) === String(elegida));
-  const destino = (idComanda) => (puede("comandas:modificar") ? `/comandas/${idComanda}/editar` : `/comandas/${idComanda}`);
+  // Las mesas abiertas del mozo que usa el sistema, de la más antigua a la más nueva
+  const misMesas = lugares
+    .filter((l) => l.comanda && usuario?.id_empleado && l.comanda.mozo_id === usuario.id_empleado)
+    .sort((a, b) => new Date(a.comanda.fecha_hora) - new Date(b.comanda.fecha_hora));
+  const lugarPanel = lugares.find((l) => l.numero === panel && l.comanda);
 
   const boton = (mesa, texto, estado, extra = {}) => {
     const esElegida = String(mesa.id_mesa) === String(elegida);
@@ -149,6 +272,28 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
 
   return (
     <div className="plano-elegir">
+      {misMesas.length > 0 && (
+        <div className="mis-mesas" aria-label="Tus mesas abiertas">
+          <span className="mis-mesas-titulo">Tus mesas</span>
+          {misMesas.map((l) => {
+            const minutos = minutosDesde(l.comanda.fecha_hora, ahora);
+            return (
+              <button
+                key={l.numero}
+                type="button"
+                className={`mis-mesas-boton ${estaDemorada(l.comanda, minutos) ? "mis-mesas-boton--demorada" : ""}`}
+                onClick={() => setPanel(l.numero)}
+              >
+                <strong>Mesa {l.numero}</strong>
+                <span>
+                  {pesosCortos(l.comanda.total_comanda)} · {textoEspera(minutos)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="plano-cabecera">
         <p className="plano-elegida" aria-live="polite">
           {actual ? (
@@ -164,7 +309,7 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
             <span className="plano-muestra plano-muestra--libre" /> Libre ({cuantas("libre")})
           </li>
           <li>
-            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")})
+            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")}): agregar o cobrar
           </li>
           {cuantas("sin-pedido") > 0 && (
             <li>
@@ -173,6 +318,10 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
           )}
           <li>
             <span className="plano-muestra plano-muestra--elegida" /> Elegida
+          </li>
+          <li>
+            <span className="plano-muestra plano-muestra--demorada" /> Demorada: más de {MINUTOS_DEMORA} min sin entregar
+            {demoradas > 0 && ` (${demoradas})`}
           </li>
         </ul>
       </div>
@@ -203,17 +352,26 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
               return boton(l.mesa, texto, l.estado, { style: l.pos, "aria-label": `Mesa ${l.numero}, ${l.capacidad} lugares` });
             }
             if (l.estado === "ocupada") {
+              const minutos = l.comanda ? minutosDesde(l.comanda.fecha_hora, ahora) : 0;
+              const demorada = l.comanda && estaDemorada(l.comanda, minutos);
               return (
-                <Link
+                <button
                   key={l.numero}
-                  to={destino(l.mesa.comanda_abierta)}
-                  className="plano-mesa plano-mesa--ocupada"
+                  type="button"
+                  className={`plano-mesa plano-mesa--ocupada ${demorada ? "plano-mesa--demorada" : ""}`}
                   style={l.pos}
-                  title={`Mesa ${l.numero} · Comanda #${l.mesa.comanda_abierta}`}
-                  aria-label={`Mesa ${l.numero}, con pedido: abrir la comanda ${l.mesa.comanda_abierta}`}
+                  title={`Mesa ${l.numero} · Con pedido · Comanda #${l.mesa.comanda_abierta}`}
+                  aria-label={`Mesa ${l.numero}, con pedido: ver opciones`}
+                  disabled={!l.comanda}
+                  onClick={() => setPanel(l.numero)}
                 >
                   {texto}
-                </Link>
+                  {l.comanda && (
+                    <span className="plano-espera" aria-label={`Esperando ${minutos} minutos`}>
+                      {textoEspera(minutos)}
+                    </span>
+                  )}
+                </button>
               );
             }
             return (
@@ -231,11 +389,15 @@ function PlanoMesas({ mesas, elegida, onElegir }) {
           {fuera.map((m) => boton(m, `Mesa ${m.numero_mesa}`, estadoDeMesa(m)))}
         </div>
       )}
+
+      {lugarPanel && <PanelMesa lugar={lugarPanel} comanda={lugarPanel.comanda} ahora={ahora} onCerrar={() => setPanel(null)} />}
     </div>
   );
 }
 
-function Editor({ id, productos, mesas, comanda, mozos }) {
+const pesosCortos = (valor) => `$${Math.round(Number(valor) || 0).toLocaleString("es-AR")}`;
+
+function Editor({ id, productos, mesas, comanda, mozos, abiertas }) {
   const esEdicion = !!id;
   const { usuario } = useAuth();
   const [parametros] = useSearchParams();
@@ -362,7 +524,7 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
       const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
       // Se va directo a imprimir el ticket; al terminar, vuelve al listado con el aviso
       const aviso = esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.`;
-      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1`, { state: { aviso } });
+      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1${esEdicion ? "&modificada=1" : ""}`, { state: { aviso, resaltar: data.id_comanda } });
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
@@ -393,7 +555,7 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
             <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
           </div>
         ) : (
-          <PlanoMesas mesas={mesas.datos} elegida={mesa} onElegir={setMesa} />
+          <PlanoMesas mesas={mesas.datos} abiertas={abiertas} elegida={mesa} onElegir={setMesa} />
         )}
         <div className="observaciones-mesa">
           <label htmlFor="observaciones" className="form-label">

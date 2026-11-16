@@ -1583,3 +1583,187 @@ a.plano-mesa:hover {
   overflow: hidden;
   clip-path: inset(50%);
 }
+
+/* ---------- Plano: mesas con pedido, espera y "Tus mesas" ---------- */
+:root {
+  --peligro: #dc2626;
+  --peligro-suave: #fef2f2;
+}
+
+[data-tema="oscuro"] {
+  --peligro: #f87171;
+  --peligro-suave: #3f1d1d;
+}
+
+button.plano-mesa:disabled {
+  cursor: default;
+}
+
+.plano-espera {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--acento-hover);
+  border-radius: 999px;
+  background-color: var(--fondo-panel);
+  color: var(--texto);
+  font-size: max(9px, 0.6cqw);
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.plano-mesa--demorada,
+.plano-muestra--demorada {
+  border-color: var(--peligro);
+  background-color: var(--peligro);
+  color: #fff;
+}
+
+.plano-mesa--demorada .plano-espera {
+  border-color: var(--peligro);
+  color: var(--peligro);
+}
+
+.plano-mesa--demorada {
+  animation: mesa-demorada 1.6s ease-in-out infinite;
+}
+
+@keyframes mesa-demorada {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.3); }
+}
+
+.mis-mesas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--borde-suave);
+}
+
+.mis-mesas-titulo {
+  margin-right: 4px;
+  color: var(--texto-suave);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mis-mesas-boton {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--acento);
+  border-radius: 10px;
+  background-color: var(--acento-suave);
+  color: var(--texto);
+  text-align: left;
+  cursor: pointer;
+}
+
+.mis-mesas-boton strong {
+  font-size: 14px;
+}
+
+.mis-mesas-boton span {
+  color: var(--texto-suave);
+  font-size: 12px;
+}
+
+.mis-mesas-boton:hover {
+  box-shadow: var(--sombra-panel);
+}
+
+.mis-mesas-boton--demorada {
+  border-color: var(--peligro);
+  background-color: var(--peligro-suave);
+}
+
+.mis-mesas-boton--demorada span {
+  color: var(--peligro);
+}
+
+/* Panel de la mesa con pedido */
+.panel-mesa {
+  max-width: 420px;
+}
+
+.panel-mesa-icono {
+  background-color: var(--acento-suave) !important;
+  color: var(--acento-texto) !important;
+}
+
+.panel-mesa-datos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 0 0 20px;
+}
+
+.panel-mesa-datos dt {
+  color: var(--texto-suave);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.panel-mesa-datos dd {
+  margin: 2px 0 0;
+  color: var(--texto);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.panel-mesa-saldo {
+  color: var(--acento-texto) !important;
+}
+
+.panel-mesa-demorada {
+  color: var(--peligro) !important;
+}
+
+.panel-mesa-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-mesa-boton {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.panel-mesa-ver {
+  margin-top: 4px;
+  color: var(--texto-suave);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Listado: la comanda recién guardada, resaltada */
+.table > tbody > tr.fila-resaltada > td {
+  background-color: var(--acento-suave) !important;
+}
+
+.table > tbody > tr.fila-resaltada > td:first-child {
+  box-shadow: inset 4px 0 0 var(--acento) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plano-mesa--demorada {
+    animation: none;
+  }
+}
+
+/* Ticket impreso después de editar la comanda */
+.aviso-anulada.aviso-modificada {
+  border-color: #92400e;
+  background-color: #fef3c7;
+  color: #92400e;
+}
