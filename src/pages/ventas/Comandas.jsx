@@ -4,6 +4,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Cargando } from "../../components/Cargando";
 import { Encabezado, InsigniaComanda, Vacio } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
+import { Cobro } from "./Cobro";
 import { Icono } from "../../components/Icono";
 import { BotonAccion, CabeceraResultados, FiltroBuscar, FiltroCasillas, FiltroFechas, ListadoLayout, PaginacionNumeros, PanelFiltros } from "../../components/Listado";
 import { useAuth } from "../../context/AuthContext";
@@ -91,6 +92,7 @@ export default function Comandas() {
   const [aviso, setAviso] = useState(state?.aviso || "");
   const resaltar = state?.resaltar;
   const [enviando, setEnviando] = useState(false);
+  const [cobrando, setCobrando] = useState(null); // comanda con el modal de pago abierto
 
   // Anular desde el listado: pide el motivo y libera la mesa
   const anular = async (comanda) => {
@@ -170,6 +172,12 @@ export default function Comandas() {
                     <td className="text-nowrap">{fechaHora(c.fecha_hora)}</td>
                     <td>
                       <div className="acciones-tabla">
+                        {/* Cobrar en el lugar, solo lo que ya se entregó (como en Django) */}
+                        {puedeModificar && c.estado_comanda === "entregado" && Number(c.saldo_pendiente) > 0 && (
+                          <button type="button" className="btn-icon btn-cobrar" title={`Cobrar la comanda #${c.id_comanda}`} aria-label={`Cobrar la comanda #${c.id_comanda}`} onClick={() => setCobrando(c)}>
+                            <Icono nombre="payments" />
+                          </button>
+                        )}
                         <BotonAccion tipo="ver" titulo={`Ver detalle de la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}`} />
                         {c.esta_abierta && puedeModificar ? (
                           <BotonAccion tipo="editar" titulo={`Editar la comanda #${c.id_comanda}`} a={`/comandas/${c.id_comanda}/editar`} />
@@ -202,6 +210,18 @@ export default function Comandas() {
           <PaginacionNumeros pagina={datos.pagina} porPagina={datos.por_pagina} total={datos.total} nombre="comandas" onPagina={(p) => cambiar({ pagina: String(p) }, true)} />
         )}
       </ListadoLayout>
+
+      {cobrando && (
+        <Cobro
+          comanda={cobrando}
+          onCerrar={() => setCobrando(null)}
+          onListo={(_, texto) => {
+            setCobrando(null);
+            setAviso(texto);
+            comandas.recargar();
+          }}
+        />
+      )}
 
     </div>
   );

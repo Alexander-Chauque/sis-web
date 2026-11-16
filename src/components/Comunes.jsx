@@ -218,6 +218,8 @@ export function Modal({
 
   const enviar = (evento) => {
     evento.preventDefault();
+    // La ventana va al final de la página, pero React lleva el envío a la pantalla de abajo: que no siga
+    evento.stopPropagation();
     onEnviar?.();
   };
 

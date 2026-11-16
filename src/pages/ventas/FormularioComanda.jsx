@@ -6,6 +6,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Cargando } from "../../components/Cargando";
 import { Alerta, Encabezado } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
+import { useNotificar } from "../../hooks/useNotificar";
+import { Cobro } from "./Cobro";
 import { Icono } from "../../components/Icono";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
@@ -88,6 +90,10 @@ export default function FormularioComanda() {
   const mozos = useCarga("/comandas/mozos/");
   // Comandas abiertas: para el panel de las mesas con pedido, la espera y "Tus mesas"
   const abiertas = useCarga(id ? null : "/comandas/", { abiertas: "1" });
+  const recargarPlano = () => {
+    mesas.recargar();
+    abiertas.recargar();
+  };
 
   if (productos.cargando || comanda.cargando) return <Cargando />;
   const error = productos.error || comanda.error;
@@ -96,7 +102,7 @@ export default function FormularioComanda() {
     return <Alerta tipo="warning">La comanda #{id} está cerrada: no se puede editar.</Alerta>;
   }
   // El editor se crea recién con los datos cargados: así arranca con lo que ya tenía la comanda
-  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} abiertas={abiertas.datos} />;
+  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} abiertas={abiertas.datos} onCambioPlano={recargarPlano} />;
 }
 
 // Tarjeta con título e ícono, como las de la pantalla de comandas de Django
@@ -140,7 +146,7 @@ function useMinuto() {
 }
 
 // Panel de una mesa con pedido: agregar productos, cobrar o ver la comanda
-function PanelMesa({ lugar, comanda: original, ahora, onCerrar }) {
+function PanelMesa({ lugar, comanda: original, ahora, onCerrar, onCobrar }) {
   const { puede } = useAuth();
   const boton = useRef(null);
   // Al marcarla como entregada se actualiza acá mismo y aparece Cobrar
@@ -229,9 +235,9 @@ function PanelMesa({ lugar, comanda: original, ahora, onCerrar }) {
                 )}
                 {/* Solo se cobra lo que ya se entregó en la mesa */}
                 {puedeModificar && saldo > 0 && entregada && (
-                  <Link to={`/comandas/${comanda.id_comanda}?cobrar=1`} className="btn btn-outline-secondary panel-mesa-boton">
+                  <button type="button" className="btn btn-outline-secondary panel-mesa-boton" onClick={() => onCobrar(comanda)}>
                     <Icono nombre="payments" /> Cobrar
-                  </Link>
+                  </button>
                 )}
                 {puedeModificar && !entregada && (
                   <button type="button" className="btn btn-outline-secondary panel-mesa-boton" disabled={entregando} onClick={entregar}>
@@ -254,8 +260,10 @@ function PanelMesa({ lugar, comanda: original, ahora, onCerrar }) {
 }
 
 // Plano del local: una mesa libre se elige con un toque; una con pedido abre su panel
-function PlanoMesas({ mesas, abiertas, elegida, onElegir }) {
+function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
   const { usuario } = useAuth();
+  const notificar = useNotificar();
+  const [cobrando, setCobrando] = useState(null); // comanda con el modal de pago abierto
   const ahora = useMinuto();
   const [panel, setPanel] = useState(null); // número de la mesa con el panel abierto
   if (!mesas) return <Cargando />;
@@ -413,14 +421,40 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir }) {
         </div>
       )}
 
-      {lugarPanel && <PanelMesa lugar={lugarPanel} comanda={lugarPanel.comanda} ahora={ahora} onCerrar={() => setPanel(null)} />}
+      {lugarPanel && (
+        <PanelMesa
+          lugar={lugarPanel}
+          comanda={lugarPanel.comanda}
+          ahora={ahora}
+          onCerrar={() => {
+            setPanel(null);
+            onCambio(); // por si la marcó como entregada
+          }}
+          onCobrar={(comanda) => {
+            setPanel(null);
+            setCobrando(comanda);
+          }}
+        />
+      )}
+      {/* Cobrar ahí mismo, sin ir al detalle de la comanda (como en Django) */}
+      {cobrando && (
+        <Cobro
+          comanda={cobrando}
+          onCerrar={() => setCobrando(null)}
+          onListo={(_, texto) => {
+            setCobrando(null);
+            notificar(texto, "success");
+            onCambio();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 const pesosCortos = (valor) => `$${Math.round(Number(valor) || 0).toLocaleString("es-AR")}`;
 
-function Editor({ id, productos, mesas, comanda, mozos, abiertas }) {
+function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano }) {
   const esEdicion = !!id;
   const { usuario } = useAuth();
   const [parametros] = useSearchParams();
@@ -578,7 +612,7 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas }) {
             <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
           </div>
         ) : (
-          <PlanoMesas mesas={mesas.datos} abiertas={abiertas} elegida={mesa} onElegir={setMesa} />
+          <PlanoMesas mesas={mesas.datos} abiertas={abiertas} elegida={mesa} onElegir={setMesa} onCambio={onCambioPlano} />
         )}
         <div className="observaciones-mesa">
           <label htmlFor="observaciones" className="form-label">

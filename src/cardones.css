@@ -1774,3 +1774,74 @@ button.plano-mesa:disabled {
   font-size: 13px;
   text-align: center;
 }
+
+/* ---------- Cobro (como el modal de pago de Django) ---------- */
+.btn-icon.btn-cobrar { background-color: #d1fae5; color: #065f46; }
+.btn-icon.btn-cobrar:is(:hover, :focus-visible) { background-color: #065f46; color: #fff; }
+[data-tema="oscuro"] .btn-icon.btn-cobrar { background-color: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+
+.cobro-saldo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 14px;
+  border-radius: 10px;
+  background-color: var(--acento-suave);
+  text-align: center;
+}
+
+.cobro-saldo span,
+.cobro-saldo small {
+  color: var(--texto-suave);
+  font-size: 13px;
+}
+
+.cobro-saldo strong {
+  margin: 2px 0;
+  color: var(--acento-texto);
+  font-size: 28px;
+}
+
+.cobro-opciones {
+  display: flex;
+  gap: 10px;
+}
+
+.cobro-opcion {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.cobro-opcion input {
+  accent-color: var(--acento);
+}
+
+.cobro-opcion.elegida {
+  border-color: var(--acento);
+  background-color: var(--acento-suave);
+  font-weight: 600;
+}
+
+.cobro-vuelto {
+  display: block;
+  margin-top: 6px;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+[data-tema="oscuro"] .cobro-vuelto {
+  color: #6ee7b7;
+}
+
+.cobro-vuelto.falta {
+  color: var(--peligro);
+}

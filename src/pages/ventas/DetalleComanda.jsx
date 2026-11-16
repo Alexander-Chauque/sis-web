@@ -2,89 +2,20 @@ import { useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
-import { Alerta, Campo, Encabezado, InsigniaComanda, Modal } from "../../components/Comunes";
+import { Alerta, Encabezado, InsigniaComanda } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
-import { Icono } from "../../components/Icono";
+import { Cobro } from "./Cobro";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { useConfirmar } from "../../hooks/useConfirmar";
 import { api, mensajeDeError } from "../../services/api";
-import { dinero, fechaHora, montoValido, opcionesAnularComanda, textoMonto } from "../../utils/formato";
+import { dinero, fechaHora, opcionesAnularComanda } from "../../utils/formato";
 
 const ESTADOS_ABIERTOS = [
   { valor: "pendiente", nombre: "Pendiente" },
   { valor: "en_preparacion", nombre: "En preparación" },
   { valor: "entregado", nombre: "Entregado" },
 ];
-
-function Cobro({ comanda, onCerrar, onListo }) {
-  const [tipo, setTipo] = useState("total");
-  // Los métodos de pago activos que se cargaron en Finanzas
-  const metodos = useCarga("/comandas/metodos-pago/");
-  const [metodo, setMetodo] = useState("");
-  const [monto, setMonto] = useState("");
-  const [error, setError] = useState("");
-  const [enviando, setEnviando] = useState(false);
-
-  const enviar = async () => {
-    setError("");
-    if (tipo === "parcial" && !montoValido(monto)) return setError("Ingresá un monto mayor a 0, con hasta 2 decimales.");
-    if (tipo === "parcial" && Number(textoMonto(monto)) > Number(comanda.saldo_pendiente)) {
-      return setError(`El monto no puede superar el saldo de ${dinero(comanda.saldo_pendiente)}.`);
-    }
-    if (!metodo) return setError("Elegí el método de pago.");
-    setEnviando(true);
-    try {
-      const { data } = await api.post(`/comandas/${comanda.id_comanda}/pago/`, {
-        tipo_pago: tipo,
-        metodo_pago: Number(metodo),
-        monto: tipo === "parcial" ? textoMonto(monto) : undefined,
-      });
-      onListo(data);
-    } catch (e) {
-      setError(mensajeDeError(e));
-      setEnviando(false);
-    }
-  };
-
-  return (
-    <Modal titulo={`Cobrar comanda #${comanda.id_comanda}`} onCerrar={onCerrar} onEnviar={enviar} enviando={enviando} textoEnviar="Registrar pago">
-      <Alerta>{error || metodos.error}</Alerta>
-      <p className="fs-5">
-        Saldo pendiente: <strong>{dinero(comanda.saldo_pendiente)}</strong>
-      </p>
-      <fieldset className="mb-3">
-        <legend className="form-label fs-6">¿Cuánto paga?</legend>
-        {[
-          ["total", "Todo el saldo"],
-          ["parcial", "Una parte"],
-        ].map(([valor, nombre]) => (
-          <div className="form-check form-check-inline" key={valor}>
-            <input className="form-check-input" type="radio" name="tipo-pago" id={`tipo-${valor}`} checked={tipo === valor} onChange={() => setTipo(valor)} />
-            <label className="form-check-label" htmlFor={`tipo-${valor}`}>
-              {nombre}
-            </label>
-          </div>
-        ))}
-      </fieldset>
-      {tipo === "parcial" && (
-        <Campo id="monto-pago" etiqueta="Monto *" prefijo="$">
-          <input id="monto-pago" className="form-control" inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value)} />
-        </Campo>
-      )}
-      <Campo id="metodo-pago" etiqueta="Método de pago *" className="mb-0">
-        <select id="metodo-pago" className="form-select" value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-          <option value="">{metodos.datos ? "Elegí..." : "Cargando..."}</option>
-          {(metodos.datos || []).map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.nombre}
-            </option>
-          ))}
-        </select>
-      </Campo>
-    </Modal>
-  );
-}
 
 export default function DetalleComanda() {
   const { id } = useParams();
@@ -151,17 +82,12 @@ export default function DetalleComanda() {
             Editar productos
           </Link>
         )}
-        {puedeModificar && comanda.esta_abierta && Number(comanda.saldo_pendiente) > 0 &&
-          // Solo se cobra lo que ya se entregó en la mesa
-          (comanda.estado_comanda === "entregado" ? (
-            <button type="button" className="btn btn-marca" onClick={() => setVentana("cobro")}>
-              Cobrar
-            </button>
-          ) : (
-            <button type="button" className="btn btn-marca" disabled={enviando} onClick={() => cambiarEstado("entregado")}>
-              <Icono nombre="room_service" /> Marcar como entregada
-            </button>
-          ))}
+        {/* Solo se cobra lo que ya se entregó en la mesa */}
+        {puedeModificar && comanda.esta_abierta && comanda.estado_comanda === "entregado" && Number(comanda.saldo_pendiente) > 0 && (
+          <button type="button" className="btn btn-marca" onClick={() => setVentana("cobro")}>
+            Cobrar
+          </button>
+        )}
       </Encabezado>
       <Notificar tipo="success" texto={aviso} onListo={() => setAviso("")} />
       <Notificar texto={!ventana && error} onListo={() => setError("")} />
@@ -290,10 +216,10 @@ export default function DetalleComanda() {
         <Cobro
           comanda={comanda}
           onCerrar={() => setVentana(null)}
-          onListo={(data) => {
+          onListo={(data, texto) => {
             setDatos(data);
             setVentana(null);
-            setAviso(data.estado_comanda === "pagado" ? "Comanda pagada en su totalidad. La mesa quedó libre." : `Pago registrado. Saldo: ${dinero(data.saldo_pendiente)}.`);
+            setAviso(texto);
           }}
         />
       )}
