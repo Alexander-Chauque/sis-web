@@ -360,9 +360,9 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
     setGuardando(true);
     try {
       const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
-      navegar("/comandas", {
-        state: { aviso: esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.` },
-      });
+      // Se va directo a imprimir el ticket; al terminar, vuelve al listado con el aviso
+      const aviso = esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.`;
+      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1`, { state: { aviso } });
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
