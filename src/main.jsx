@@ -9,6 +9,7 @@ import { ProveedorConfirmar } from "./components/Confirmar";
 import { AuthProvider } from "./context/AuthContext";
 import "./index.css";
 import "./cardones.css";
+import "./inicio.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
