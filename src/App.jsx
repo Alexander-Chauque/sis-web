@@ -18,9 +18,11 @@ import FormularioIngrediente from "./pages/inventario/FormularioIngrediente";
 import Ingredientes from "./pages/inventario/Ingredientes";
 import Platos from "./pages/inventario/Platos";
 import Login from "./pages/Login";
+import Notificaciones from "./pages/notificaciones/Notificaciones";
 import PaginaModulo from "./pages/PaginaModulo";
 import Panel from "./pages/Panel";
 import Auditoria from "./pages/reportes/Auditoria";
+import Consolidados from "./pages/reportes/Consolidados";
 import Comandas from "./pages/ventas/Comandas";
 import DetalleComanda from "./pages/ventas/DetalleComanda";
 import FormularioComanda from "./pages/ventas/FormularioComanda";
@@ -55,6 +57,8 @@ const PANTALLAS = [
   { ruta: "cargos", permiso: "cargos:leer", Pantalla: Cargos },
   { ruta: "permisos", permiso: "cargos:leer", Pantalla: Permisos },
   { ruta: "reportes", permiso: "reportes:leer", Pantalla: Reportes },
+  // Parcial Nº 2 (M2): cada pestaña la habilita la API según el perfil
+  { ruta: "reportes/consolidados", permiso: "reportes:leer", Pantalla: Consolidados },
   { ruta: "auditoria", permiso: "auditoria:leer", Pantalla: Auditoria },
 ];
 
@@ -79,6 +83,8 @@ export default function App() {
           <Route path="cuenta/perfil" element={<MiPerfil />} />
           <Route path="cuenta/contrasena" element={<CambiarContrasena />} />
           <Route path="cuenta/permisos" element={<MisPermisos />} />
+          {/* Parcial Nº 2 (M3): cada usuario ve las notificaciones dirigidas a su cargo */}
+          <Route path="notificaciones" element={<Notificaciones />} />
           {PANTALLAS.map(({ ruta, permiso, Pantalla, props }) => (
             <Route key={ruta} element={<RutaPrivada permiso={permiso} />}>
               {/* key: al pasar de un catálogo a otro, la pantalla empieza de cero */}

@@ -73,6 +73,7 @@ export const MENU = [
     resumen: "Ventas, estadísticas y auditoría",
     opciones: [
       { a: "/reportes", texto: "Reportes", icono: "bar_chart", permiso: "reportes:leer", pie: { titulo: "Reportes", descripcion: "Estadísticas y análisis" } },
+      { a: "/reportes/consolidados", texto: "Consolidados", icono: "table_chart", permiso: "reportes:leer", pie: { titulo: "Reportes consolidados", descripcion: "Cruce de varios procesos" } },
       { a: "/auditoria", texto: "Auditoría", icono: "history", permiso: "auditoria:leer", pie: { titulo: "Auditoría", descripcion: "Historial de movimientos" } },
     ],
   },

@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "rea
 import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { Campana } from "./Campana";
 import { Cargando } from "./Cargando";
 import { Icono } from "./Icono";
 import { ProveedorMensajes } from "./Mensajes";
@@ -216,6 +217,7 @@ export default function Layout() {
             </Link>
           </div>
           <div className="navbar-user">
+            <Campana />
             <MenuUsuario usuario={usuario} cerrarSesion={cerrarSesion} />
           </div>
         </header>

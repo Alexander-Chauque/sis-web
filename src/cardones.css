@@ -2364,3 +2364,123 @@ a {
 body:has(.cuenta-pagina) .footer {
   margin-top: 32px;
 }
+
+
+/* ---------- Parcial Nº 2: campana de notificaciones (igual que en Django) ---------- */
+.navbar-user {
+  gap: 12px;
+}
+
+.campana-notificaciones {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--topbar-boton);
+  color: var(--topbar-texto);
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.campana-notificaciones:hover {
+  background-color: var(--topbar-boton-hover);
+  color: var(--topbar-texto);
+}
+
+.campana-notificaciones:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.campana-notificaciones .material-symbols-outlined {
+  font-size: 24px;
+}
+
+/* Número de no leídas, arriba a la derecha */
+.campana-numero {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--topbar-fondo);
+  border-radius: 10px;
+  background-color: #dc3545;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Bandeja: tipo de alerta con su ícono y las sin leer destacadas con una línea naranja */
+.badge-alerta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.badge-alerta .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.table > tbody > tr.fila-nueva > td:first-child {
+  box-shadow: inset 4px 0 0 var(--acento);
+}
+
+.table > tbody > tr.fila-nueva > td {
+  font-weight: 600;
+}
+
+/* ---------- Parcial Nº 2: reportes consolidados ---------- */
+.icono-restringido {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.consolidado-info {
+  padding: 12px 20px 0;
+  color: var(--texto-suave);
+  font-size: 13px;
+}
+
+.consolidado-info p {
+  margin-bottom: 6px;
+}
+
+.tabla-consolidado tfoot .fila-totales td {
+  border-top: 2px solid var(--acento);
+  border-bottom: none;
+  background-color: rgba(245, 166, 35, 0.12);
+  font-weight: 700;
+}
+
+.consolidado-pie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--borde);
+}
+
+.consolidado-pie .paginacion {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.consolidado-nota {
+  margin: 0;
+  padding: 0 20px 14px;
+  color: var(--texto-suave);
+  font-size: 12px;
+}

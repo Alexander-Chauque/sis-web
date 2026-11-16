@@ -45,6 +45,11 @@ Django vuelve a comprobar el permiso en cada pedido, así que ocultar un botón 
   cargos con sus permisos y el listado de permisos.
 - **Control**: reportes (ventas, más vendidos, categorías, mozos y métodos de pago, con CSV e impresión)
   y auditoría (con filtros y CSV).
+- **Reportes consolidados** (Parcial Nº 2): rentabilidad por plato, consolidado de cajas y desempeño del
+  personal. Cruzan dos o más procesos, con filtros, grilla paginada, totales y PDF generado por Django.
+  Rentabilidad es un reporte sensible: solo lo ve el Administrador.
+- **Notificaciones** (Parcial Nº 2): campana con las no leídas en el encabezado y bandeja con filtros
+  para marcarlas como leídas. Las alertas las crean las reglas de Django para el cargo de destino.
 - **Mi cuenta**: perfil, cambio de contraseña y mis permisos.
 - **Login**: con usuario o correo. Si la contraseña es temporal, pide una nueva antes de entrar.
   "¿Olvidaste tu contraseña?" abre la recuperación por correo de Django.
