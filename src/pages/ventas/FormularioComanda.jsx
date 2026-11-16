@@ -10,6 +10,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, normalizar } from "../../utils/formato";
+import { ELEMENTOS, MESAS, PILARES, PROPORCION, posicion, ZONAS } from "./planoSalon";
 
 const MAXIMO = 999;
 const clave = (item) => `${item.tipo}-${item.id}`;
@@ -49,6 +50,130 @@ function Tarjeta({ icono, titulo, extra, children, className = "" }) {
   );
 }
 
+// Estado de cada mesa del plano según la API
+function estadoDeMesa(mesa) {
+  if (!mesa) return "sin-cargar";
+  if (mesa.comanda_abierta) return "ocupada";
+  return mesa.estado_mesa ? "libre" : "sin-pedido";
+}
+
+// Plano del local: una mesa libre se elige con un toque; una con pedido lleva a su comanda
+function PlanoMesas({ mesas, elegida, onElegir }) {
+  const { puede } = useAuth();
+  if (!mesas) return <Cargando />;
+  const porNumero = new Map(mesas.map((m) => [m.numero_mesa, m]));
+  const enPlano = new Set(MESAS.map((m) => m.numero));
+  const fuera = mesas.filter((m) => !enPlano.has(m.numero_mesa) && ["libre", "sin-pedido"].includes(estadoDeMesa(m)));
+  const lugares = MESAS.map((lugar) => ({ ...lugar, mesa: porNumero.get(lugar.numero), estado: estadoDeMesa(porNumero.get(lugar.numero)) }));
+  const cuantas = (estado) => lugares.filter((l) => l.estado === estado).length;
+  const actual = mesas.find((m) => String(m.id_mesa) === String(elegida));
+  const destino = (idComanda) => (puede("comandas:modificar") ? `/comandas/${idComanda}/editar` : `/comandas/${idComanda}`);
+
+  const boton = (mesa, texto, estado, extra = {}) => {
+    const esElegida = String(mesa.id_mesa) === String(elegida);
+    return (
+      <button
+        key={mesa.id_mesa}
+        type="button"
+        className={`plano-mesa plano-mesa--${estado} ${esElegida ? "plano-mesa--elegida" : ""}`}
+        aria-pressed={esElegida}
+        title={`Mesa ${mesa.numero_mesa}${estado === "sin-pedido" ? " · Ocupada sin pedido" : " · Libre"}`}
+        onClick={() => onElegir(String(mesa.id_mesa))}
+        {...extra}
+      >
+        {texto}
+      </button>
+    );
+  };
+
+  return (
+    <div className="plano-elegir">
+      <div className="plano-cabecera">
+        <p className="plano-elegida" aria-live="polite">
+          {actual ? (
+            <>
+              Mesa elegida: <strong>Mesa {actual.numero_mesa} · {actual.ubicacion_nombre}</strong>
+            </>
+          ) : (
+            "Tocá una mesa libre del plano."
+          )}
+        </p>
+        <ul className="plano-leyenda">
+          <li>
+            <span className="plano-muestra plano-muestra--libre" /> Libre ({cuantas("libre")})
+          </li>
+          <li>
+            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")})
+          </li>
+          {cuantas("sin-pedido") > 0 && (
+            <li>
+              <span className="plano-muestra plano-muestra--sin-pedido" /> Ocupada sin pedido ({cuantas("sin-pedido")})
+            </li>
+          )}
+          <li>
+            <span className="plano-muestra plano-muestra--elegida" /> Elegida
+          </li>
+        </ul>
+      </div>
+
+      <div className="plano-desplazable">
+        <div className="plano" style={{ aspectRatio: PROPORCION }}>
+          {ZONAS.map((z) => (
+            <div key={z.nombre} className={`plano-zona ${z.clase}`} style={posicion(z.x, z.y, z.ancho, z.alto)}>
+              <span className="plano-zona-nombre">{z.nombre}</span>
+            </div>
+          ))}
+          {ELEMENTOS.map((e) => (
+            <div key={e.nombre} className={`plano-elemento ${e.clase}`} style={posicion(e.x, e.y, e.ancho, e.alto)} aria-hidden="true">
+              <span>{e.nombre}</span>
+            </div>
+          ))}
+          {PILARES.map((pos, i) => (
+            <div key={i} className="plano-pilar" style={pos} aria-hidden="true" />
+          ))}
+          {lugares.map((l) => {
+            const texto = (
+              <>
+                <strong>{l.numero}</strong>
+                <small>{l.capacidad} p.</small>
+              </>
+            );
+            if (l.estado === "libre" || l.estado === "sin-pedido") {
+              return boton(l.mesa, texto, l.estado, { style: l.pos, "aria-label": `Mesa ${l.numero}, ${l.capacidad} lugares` });
+            }
+            if (l.estado === "ocupada") {
+              return (
+                <Link
+                  key={l.numero}
+                  to={destino(l.mesa.comanda_abierta)}
+                  className="plano-mesa plano-mesa--ocupada"
+                  style={l.pos}
+                  title={`Mesa ${l.numero} · Comanda #${l.mesa.comanda_abierta}`}
+                  aria-label={`Mesa ${l.numero}, con pedido: abrir la comanda ${l.mesa.comanda_abierta}`}
+                >
+                  {texto}
+                </Link>
+              );
+            }
+            return (
+              <div key={l.numero} className="plano-mesa plano-mesa--sin-cargar" style={l.pos} title={`Mesa ${l.numero} · No está cargada`}>
+                {texto}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {fuera.length > 0 && (
+        <div className="plano-fuera">
+          <span>Fuera del plano:</span>
+          {fuera.map((m) => boton(m, `Mesa ${m.numero_mesa}`, estadoDeMesa(m)))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Editor({ id, productos, mesas, comanda }) {
   const esEdicion = !!id;
   const { usuario } = useAuth();
@@ -56,7 +181,6 @@ function Editor({ id, productos, mesas, comanda }) {
   const navegar = useNavigate();
 
   const [mesa, setMesa] = useState(parametros.get("mesa") || "");
-  const [buscarMesa, setBuscarMesa] = useState("");
   const [observaciones, setObservaciones] = useState(comanda?.observaciones_comanda || "");
   // [{tipo, id, nombre, precio, cantidad}]
   const [pedido, setPedido] = useState(() =>
@@ -92,19 +216,6 @@ function Editor({ id, productos, mesas, comanda }) {
     return [...nombres].sort((a, b) => a.localeCompare(b));
   }, [productos, tipo]);
 
-  // Mesas libres agrupadas por ubicación (Salón, Patio), filtradas por el número buscado
-  const gruposMesas = useMemo(() => {
-    const libres = (mesas.datos || []).filter((m) => m.estado_mesa && !m.comanda_abierta && String(m.numero_mesa).includes(buscarMesa.trim()));
-    const grupos = new Map();
-    libres.forEach((m) => {
-      const nombre = m.ubicacion_nombre || "Sin ubicación";
-      if (!grupos.has(nombre)) grupos.set(nombre, []);
-      grupos.get(nombre).push(m);
-    });
-    return [...grupos.entries()];
-  }, [mesas.datos, buscarMesa]);
-  const mesaElegida = (mesas.datos || []).find((m) => String(m.id_mesa) === String(mesa));
-
   const total = pedido.reduce((suma, i) => suma + Number(i.precio) * i.cantidad, 0);
 
   const agregar = (producto) =>
@@ -136,7 +247,8 @@ function Editor({ id, productos, mesas, comanda }) {
     setGuardando(true);
     try {
       const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
-      navegar(`/comandas/${data.id_comanda}`);
+      // Como en Django: se imprime el ticket y después se vuelve al listado
+      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1`);
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
@@ -157,55 +269,23 @@ function Editor({ id, productos, mesas, comanda }) {
         <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
       )}
 
+      {!esEdicion && (
+        <Tarjeta icono="table_restaurant" titulo="Mesa" className="tarjeta-plano">
+          <PlanoMesas mesas={mesas.datos} elegida={mesa} onElegir={setMesa} />
+        </Tarjeta>
+      )}
+
       <div className="comanda-layout">
         <div className="comanda-izquierda">
           <Tarjeta icono="receipt_long" titulo="Datos del pedido">
-            <div className="mb-3">
-              <span className="form-label d-block">
-                Mesa <span className="req">*</span>
-              </span>
-              {esEdicion ? (
+            {esEdicion && (
+              <div className="mb-3">
+                <span className="form-label d-block">Mesa</span>
                 <div className="mesa-fija">
                   <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
                 </div>
-              ) : (
-                <>
-                  <div className="buscador-ingredientes mb-2">
-                    <Icono nombre="search" />
-                    <input
-                      type="search"
-                      inputMode="numeric"
-                      placeholder="Buscar por número de mesa"
-                      aria-label="Buscar mesa por número"
-                      value={buscarMesa}
-                      onChange={(e) => setBuscarMesa(e.target.value)}
-                    />
-                  </div>
-                  <p className="mesa-elegida">{mesaElegida ? `Mesa ${mesaElegida.numero_mesa} · ${mesaElegida.ubicacion_nombre}` : "Todavía no elegiste una mesa."}</p>
-                  {gruposMesas.map(([ubicacion, lista]) => (
-                    <fieldset key={ubicacion} className="grupo-mesas">
-                      <legend>{ubicacion}</legend>
-                      <div className="botones-mesa">
-                        {lista.map((m) => (
-                          <button
-                            key={m.id_mesa}
-                            type="button"
-                            className={`boton-mesa ${String(m.id_mesa) === String(mesa) ? "elegida" : ""}`}
-                            aria-pressed={String(m.id_mesa) === String(mesa)}
-                            aria-label={`Mesa ${m.numero_mesa}`}
-                            onClick={() => setMesa(String(m.id_mesa))}
-                          >
-                            {m.numero_mesa}
-                          </button>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ))}
-                  {mesas.datos && !gruposMesas.length && <p className="small text-danger mb-0">No hay mesas disponibles{buscarMesa ? " con ese número" : ""}.</p>}
-                  {!!gruposMesas.length && <p className="form-text mb-0">Mesa disponible para tomar el pedido.</p>}
-                </>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="mb-3">
               <span className="form-label d-block">Mozo</span>

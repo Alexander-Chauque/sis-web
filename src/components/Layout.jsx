@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
@@ -34,15 +34,39 @@ function aplicarTema(oscuro) {
   }
 }
 
-function MenuLateral({ abierto, onCerrar, grupos, ruta }) {
-  // Se abre solo el grupo de la pantalla actual; el resto, a pedido
-  const actual = ubicar(ruta).grupo.titulo;
-  const [desplegados, setDesplegados] = useState({});
-  const estaDesplegado = (titulo) => desplegados[titulo] ?? titulo === actual;
+const ESCRITORIO = "(min-width: 1024px)";
+
+// En escritorio el menú queda siempre a la vista
+function useEsEscritorio() {
+  return useSyncExternalStore(
+    (avisar) => {
+      const consulta = window.matchMedia(ESCRITORIO);
+      consulta.addEventListener("change", avisar);
+      return () => consulta.removeEventListener("change", avisar);
+    },
+    () => window.matchMedia(ESCRITORIO).matches,
+  );
+}
+
+// Opciones agrupadas por sección (Inventario, Salón, Finanzas, Personal, Control)
+function agruparPorSeccion(grupos) {
+  const secciones = [];
+  grupos.forEach((g) => {
+    const ultima = secciones[secciones.length - 1];
+    if (ultima && ultima.titulo === g.seccion) ultima.opciones.push(...g.opciones);
+    else secciones.push({ titulo: g.seccion, opciones: [...g.opciones] });
+  });
+  return secciones;
+}
+
+function MenuLateral({ abierto, onCerrar, grupos }) {
+  const escritorio = useEsEscritorio();
+  const visible = abierto || escritorio;
+  const clase = ({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`;
 
   return (
     <>
-      <aside className={`sidebar no-imprimir ${abierto ? "activo" : ""}`} aria-label="Menú principal" aria-hidden={!abierto} inert={!abierto}>
+      <aside className={`sidebar no-imprimir ${abierto ? "activo" : ""}`} aria-label="Menú principal" aria-hidden={!visible} inert={!visible}>
         <div className="sidebar-header">
           <Link to="/" onClick={onCerrar}>
             <img src="/img/logo.png" alt="Los Cardones" className="sidebar-logo" />
@@ -52,46 +76,21 @@ function MenuLateral({ abierto, onCerrar, grupos, ruta }) {
           </button>
         </div>
         <nav className="sidebar-nav">
-          <NavLink to="/" end className={({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`} onClick={onCerrar}>
+          <NavLink to="/" end className={clase} onClick={onCerrar}>
             <Icono nombre="home" /> Inicio
           </NavLink>
-          {grupos.map((g) => {
-            if (!g.inicio) {
-              return g.opciones.map((o) => (
-                <NavLink
-                  key={o.a}
-                  to={o.a}
-                  className={({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`}
-                  onClick={onCerrar}
-                >
+          {agruparPorSeccion(grupos).map((s) => (
+            <div key={s.titulo} className="sidebar-seccion" role="group" aria-label={s.titulo}>
+              <p className="sidebar-etiqueta" aria-hidden="true">
+                {s.titulo}
+              </p>
+              {s.opciones.map((o) => (
+                <NavLink key={o.a} to={o.a} className={clase} onClick={onCerrar}>
                   <Icono nombre={o.icono} /> {o.texto}
                 </NavLink>
-              ));
-            }
-            const desplegado = estaDesplegado(g.titulo);
-            const id = `submenu-${g.titulo}`;
-            return (
-              <div className="sidebar-modulo" key={g.titulo}>
-                <button
-                  type="button"
-                  className="sidebar-item"
-                  aria-expanded={desplegado}
-                  aria-controls={id}
-                  onClick={() => setDesplegados((d) => ({ ...d, [g.titulo]: !desplegado }))}
-                >
-                  <Icono nombre={g.icono} /> {g.titulo}
-                  <Icono nombre="expand_more" className={`flecha-submenu ${desplegado ? "girada" : ""}`} />
-                </button>
-                <div className={`sidebar-submenu ${desplegado ? "abierto" : ""}`} id={id}>
-                  {g.opciones.map((o) => (
-                    <NavLink key={o.a} to={o.a} className={({ isActive }) => (isActive ? "activo" : "")} onClick={onCerrar}>
-                      {o.texto}
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ))}
         </nav>
       </aside>
       <div className={`overlay-sidebar ${abierto ? "activo" : ""}`} onClick={onCerrar} aria-hidden="true" />
@@ -233,7 +232,7 @@ export default function Layout() {
       <a className="visually-hidden-focusable btn btn-light position-absolute m-2" href="#contenido">
         Saltar al contenido
       </a>
-      <MenuLateral abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} grupos={grupos} ruta={pathname} />
+      <MenuLateral abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} grupos={grupos} />
       <div className="contenido-principal">
         <header className="topbar no-imprimir">
           <div className="topbar-left">

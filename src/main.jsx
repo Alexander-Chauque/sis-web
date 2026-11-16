@@ -8,6 +8,7 @@ import App from "./App";
 import { ProveedorConfirmar } from "./components/Confirmar";
 import { AuthProvider } from "./context/AuthContext";
 import "./index.css";
+import "./cardones.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

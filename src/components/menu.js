@@ -1,6 +1,7 @@
 export const MENU = [
   {
     titulo: "Inventario",
+    seccion: "Inventario",
     inicio: "/inventario",
     icono: "inventory_2",
     descripcion: "Gestión de productos",
@@ -15,6 +16,7 @@ export const MENU = [
   },
   {
     titulo: "Mesas",
+    seccion: "Salón",
     icono: "table_restaurant",
     descripcion: "Gestión de mesas y pedidos",
     resumen: "Control de mesas y comandas",
@@ -24,6 +26,7 @@ export const MENU = [
 
   {
     titulo: "Comandas",
+    seccion: "Salón",
     icono: "receipt_long",
     descripcion: "Gestión de comandas",
     resumen: "Control de pedidos y facturación",
@@ -34,6 +37,7 @@ export const MENU = [
   
   {
     titulo: "Finanzas",
+    seccion: "Finanzas",
     inicio: "/finanzas",
     icono: "payments",
     descripcion: "Caja, gastos y ventas",
@@ -48,12 +52,13 @@ export const MENU = [
   },
   {
     titulo: "Empleados",
+    seccion: "Personal",
     inicio: "/personal",
     icono: "groups",
     descripcion: "Gestión de personal",
     resumen: "Gestiona el personal del restaurante",
     opciones: [
-      { a: "/empleados", texto: "Listado", icono: "badge", permiso: "empleados:leer" },
+      { a: "/empleados", texto: "Empleados", icono: "badge", permiso: "empleados:leer" },
       { a: "/asistencias", texto: "Asistencia", icono: "event_available", permiso: "empleados:leer" },
       { a: "/turnos", texto: "Turnos", icono: "schedule", permiso: "empleados:leer" },
       { a: "/cargos", texto: "Cargos", icono: "work", permiso: "cargos:leer" },
@@ -62,6 +67,7 @@ export const MENU = [
   },
   {
     titulo: "Reportes",
+    seccion: "Control",
     icono: "bar_chart",
     descripcion: "Estadísticas y análisis",
     resumen: "Ventas, estadísticas y auditoría",

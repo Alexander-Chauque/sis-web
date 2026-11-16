@@ -1,18 +1,18 @@
 // Comprobante para el cliente y tickets para cocina, bar y parrilla. Se ven sin el menú, listos para imprimir.
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Alerta } from "../../components/Comunes";
 import { useCarga } from "../../hooks/useCarga";
 import { dinero, fecha, fechaHora } from "../../utils/formato";
 
-function Acciones({ id, children }) {
+function Acciones({ id, children, volver }) {
   return (
     <div className="d-flex flex-wrap justify-content-center gap-2 my-4 no-imprimir">
       {children}
-      <Link className="btn btn-outline-secondary" to={`/comandas/${id}`}>
-        Volver a la comanda
+      <Link className="btn btn-outline-secondary" to={volver || `/comandas/${id}`}>
+        {volver ? "Volver a las comandas" : "Volver a la comanda"}
       </Link>
     </div>
   );
@@ -109,6 +109,25 @@ export function Tickets() {
   const { id } = useParams();
   const { datos: comanda, cargando, error } = useCarga(`/comandas/${id}/`);
   const [elegido, setElegido] = useState(null);
+  const [parametros] = useSearchParams();
+  const navegar = useNavigate();
+  // Recién guardada la comanda: se imprime sola y después vuelve al listado
+  const alGuardar = parametros.get("imprimir") === "1";
+  const impresa = useRef(false);
+
+  useEffect(() => {
+    if (!alGuardar || !comanda || impresa.current) return undefined;
+    const alTerminar = () => navegar("/comandas", { replace: true });
+    window.addEventListener("afterprint", alTerminar, { once: true });
+    const espera = setTimeout(() => {
+      impresa.current = true;
+      window.print();
+    }, 300);
+    return () => {
+      clearTimeout(espera);
+      window.removeEventListener("afterprint", alTerminar);
+    };
+  }, [alGuardar, comanda, navegar]);
 
   if (cargando) return <Cargando />;
   if (!comanda) return <Alerta>{error}</Alerta>;
@@ -184,7 +203,7 @@ export function Tickets() {
         ))}
         {!tickets.length && <p className="text-center">Esta comanda no tiene productos para preparar.</p>}
       </div>
-      <Acciones id={id}>
+      <Acciones id={id} volver={alGuardar ? "/comandas" : undefined}>
         {tickets.length > 1 && (
           <button type="button" className="btn btn-marca" onClick={() => window.print()}>
             Imprimir los {tickets.length} tickets
