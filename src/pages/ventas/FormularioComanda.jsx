@@ -1,12 +1,11 @@
 // Tomar un pedido nuevo o cambiar los productos de una comanda abierta
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Alerta, Encabezado } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
-import { useNotificar } from "../../hooks/useNotificar";
 import { Cobro } from "./Cobro";
 import { Icono } from "../../components/Icono";
 import { useAuth } from "../../context/AuthContext";
@@ -268,7 +267,6 @@ function PanelMesa({ lugar, comanda: original, ahora, onCerrar, onCobrar }) {
 // Plano del local: una mesa libre se elige con un toque; una con pedido abre su panel
 function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio, comandaEditada }) {
   const { usuario } = useAuth();
-  const notificar = useNotificar();
   const [cobrando, setCobrando] = useState(null); // comanda con el modal de pago abierto
   const ahora = useMinuto();
   const [panel, setPanel] = useState(null); // número de la mesa con el panel abierto
@@ -463,11 +461,6 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio, comandaEdita
         <Cobro
           comanda={cobrando}
           onCerrar={() => setCobrando(null)}
-          onListo={(_, texto) => {
-            setCobrando(null);
-            notificar(texto, "success");
-            onCambio();
-          }}
         />
       )}
     </div>
@@ -481,6 +474,7 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
   const { usuario } = useAuth();
   const [parametros] = useSearchParams();
   const navegar = useNavigate();
+  const avisoCobro = useLocation().state?.aviso;
 
   const [mesa, setMesa] = useState(esEdicion ? String(comanda.mesa) : parametros.get("mesa") || "");
   // Por defecto, el que está usando el sistema (o el mozo que ya tenía la comanda)
@@ -631,6 +625,8 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
         </Link>
       </Encabezado>
       <Notificar texto={error || mesas.error || mozos.error} onListo={() => setError("")} />
+      {/* Al volver del comprobante después de cobrar una mesa */}
+      <Notificar tipo="success" texto={avisoCobro} />
       {!!Object.keys(minimos).length && (
         <Alerta tipo="warning">
           Esta comanda ya tiene {dinero(comanda.total_pagado)} abonados. Podés agregar productos o aumentar cantidades, pero no quitar ni reducir lo que ya tenía.

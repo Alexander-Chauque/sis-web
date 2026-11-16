@@ -25,6 +25,26 @@ export function Comprobante() {
   const { id } = useParams();
   const { usuario } = useAuth();
   const { datos: comanda, cargando, error } = useCarga(`/comandas/${id}/`);
+  const [parametros] = useSearchParams();
+  const navegar = useNavigate();
+  // Recién cobrada: se imprime solo y al terminar vuelve a la pantalla desde donde se cobró
+  const alCobrar = parametros.get("imprimir") === "1";
+  const { aviso, volver } = useLocation().state || {};
+  const impreso = useRef(false);
+
+  useEffect(() => {
+    if (!alCobrar || !comanda || impreso.current) return undefined;
+    const alTerminar = () => navegar(volver || `/comandas/${id}`, { replace: true, state: { aviso } });
+    window.addEventListener("afterprint", alTerminar, { once: true });
+    const espera = setTimeout(() => {
+      impreso.current = true;
+      window.print();
+    }, 300);
+    return () => {
+      clearTimeout(espera);
+      window.removeEventListener("afterprint", alTerminar);
+    };
+  }, [alCobrar, comanda, navegar, volver, aviso, id]);
   // Hora de emisión, tomada al abrir la pantalla
   const [ahora] = useState(() => new Date());
   if (cargando) return <Cargando />;

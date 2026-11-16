@@ -2,13 +2,16 @@
 // todo de una vez o por partes, con el método de pago y el vuelto si paga en efectivo.
 // Se abre en el lugar (plano, listado o detalle) sin cambiar de pantalla.
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Alerta, Campo, Modal } from "../../components/Comunes";
 import { useCarga } from "../../hooks/useCarga";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, montoValido, textoMonto } from "../../utils/formato";
 
-export function Cobro({ comanda, onCerrar, onListo }) {
+export function Cobro({ comanda, onCerrar }) {
+  const navegar = useNavigate();
+  const { pathname } = useLocation();
   const metodos = useCarga("/comandas/metodos-pago/");
   const [tipo, setTipo] = useState("total");
   const [metodo, setMetodo] = useState("");
@@ -39,12 +42,12 @@ export function Cobro({ comanda, onCerrar, onListo }) {
       });
       const restante = Number(data.saldo_pendiente);
       const textoVuelto = Number(data.vuelto) > 0 ? ` Vuelto a entregar: ${dinero(data.vuelto)}.` : "";
-      onListo(
-        data,
+      const aviso =
         restante > 0
           ? `Pago de ${dinero(data.monto_cobrado)} registrado en la comanda #${comanda.id_comanda}. Saldo pendiente: ${dinero(restante)}.${textoVuelto}`
-          : `Comanda #${comanda.id_comanda} pagada.${textoVuelto}`,
-      );
+          : `Comanda #${comanda.id_comanda} pagada.${textoVuelto}`;
+      // Al terminar de cobrar se imprime el comprobante y después se vuelve a esta pantalla
+      navegar(`/comandas/${comanda.id_comanda}/comprobante?imprimir=1`, { state: { aviso, volver: pathname } });
     } catch (e) {
       setError(mensajeDeError(e));
       setEnviando(false);

@@ -1,7 +1,7 @@
 // Detalle de una comanda, igual al de Django (comanda_detalle.html):
 // estado, datos de la mesa, productos con sus notas, total y observaciones.
 import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Alerta, Encabezado } from "../../components/Comunes";
@@ -37,7 +37,9 @@ export default function DetalleComanda() {
   // Con ?cobrar=1 se abre el cobro directamente
   const [cobrando, setCobrando] = useState(() => !!parametros.get("cobrar"));
   const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
+  // Al volver del comprobante después de cobrar llega el aviso del cobro
+  const { state } = useLocation();
+  const [aviso, setAviso] = useState(state?.aviso || "");
   const [enviando, setEnviando] = useState(false);
 
   if (cargando) return <Cargando />;
@@ -229,11 +231,6 @@ export default function DetalleComanda() {
         <Cobro
           comanda={comanda}
           onCerrar={() => setCobrando(false)}
-          onListo={(data, texto) => {
-            setDatos(data);
-            setCobrando(false);
-            setAviso(texto);
-          }}
         />
       )}
     </div>

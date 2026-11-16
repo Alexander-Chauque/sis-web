@@ -215,11 +215,6 @@ export default function Comandas() {
         <Cobro
           comanda={cobrando}
           onCerrar={() => setCobrando(null)}
-          onListo={(_, texto) => {
-            setCobrando(null);
-            setAviso(texto);
-            comandas.recargar();
-          }}
         />
       )}
 
