@@ -2557,3 +2557,40 @@ body:has(.cuenta-pagina) .footer {
   color: var(--texto-suave);
   font-size: 12px;
 }
+
+/* Los desplegables de los filtros de Reportes, iguales a las fechas */
+.grupo-filtro select {
+  min-width: 180px;
+  padding: 10px 15px;
+  border: 2px solid var(--borde);
+  border-radius: 8px;
+  outline: none;
+  background-color: var(--fondo-panel);
+  color: var(--texto);
+  font-size: 16px;
+}
+
+.grupo-filtro select:focus {
+  border-color: var(--naranja);
+}
+
+/* Consolidados: descripción y procesos debajo del título, con el mismo aire que la tabla */
+.tarjeta-top .consolidado-cabecera {
+  align-items: center;
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--borde);
+}
+
+.tarjeta-top .consolidado-nota {
+  margin: 0;
+  padding: 10px 20px;
+}
+
+.tarjeta-top .consolidado-pie {
+  padding: 0 20px 16px;
+}
+
+.grupo-filtro select {
+  min-height: 49px;
+}

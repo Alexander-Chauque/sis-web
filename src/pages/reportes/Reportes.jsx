@@ -196,6 +196,7 @@ export default function Reportes() {
         <ReporteConsolidado
           key={pestania}
           clave={pestania}
+          icono={consolidados.find((c) => c.clave === pestania)?.icono}
           rango={rango}
           onRango={(nuevo) => {
             setRango(nuevo);

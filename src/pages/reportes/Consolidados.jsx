@@ -26,7 +26,7 @@ async function errorDeDescarga(error) {
 }
 
 // rango: { fecha_desde, fecha_hasta } compartido con las demás pestañas de Reportes
-export function ReporteConsolidado({ clave, rango, onRango }) {
+export function ReporteConsolidado({ clave, icono = "table_chart", rango, onRango }) {
   // Lo que se escribe en los filtros y lo que ya se aplicó con "Filtrar"
   const [borrador, setBorrador] = useState({ ...rango, extra: "", filas: 10 });
   const [extra, setExtra] = useState({});
@@ -119,12 +119,15 @@ export function ReporteConsolidado({ clave, rango, onRango }) {
       {!r ? (
         reporte.cargando && <Cargando />
       ) : (
-        <div className={`tarjeta-top ${reporte.cargando ? "opacity-50" : ""}`}>
+        // Mismo panel y tarjeta que las demás pestañas de Reportes (Top 5, Mozos...)
+        <div className="area-reporte">
+        <section className={`tarjeta-top ${reporte.cargando ? "opacity-50" : ""}`}>
+          <div className="titulo-top">
+            <Icono nombre={icono} className="icono-naranja" />
+            <h3>{r.titulo}</h3>
+          </div>
           <div className="consolidado-cabecera">
-            <div>
-              <h3>{r.titulo}</h3>
-              <p>{r.descripcion}</p>
-            </div>
+            <p>{r.descripcion}</p>
             <span className="chip-procesos" title="Procesos que cruza este reporte">
               <Icono nombre="join_inner" /> {r.procesos}
             </span>
@@ -173,10 +176,13 @@ export function ReporteConsolidado({ clave, rango, onRango }) {
             </table>
           </div>
 
-          {r.nota && <p className="nota-reporte">{r.nota}</p>}
+          {r.nota && <p className="nota-reporte consolidado-nota">{r.nota}</p>}
           {pagina.total > pagina.porPagina && (
-            <PaginacionNumeros pagina={pagina.pagina} porPagina={pagina.porPagina} total={pagina.total} nombre="filas" onPagina={pagina.irA} />
+            <div className="consolidado-pie">
+              <PaginacionNumeros pagina={pagina.pagina} porPagina={pagina.porPagina} total={pagina.total} nombre="filas" onPagina={pagina.irA} />
+            </div>
           )}
+        </section>
         </div>
       )}
     </>
