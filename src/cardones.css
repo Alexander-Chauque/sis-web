@@ -2225,3 +2225,78 @@ button.plano-mesa:disabled {
     animation: none;
   }
 }
+
+/* ---------- Ventas: estado de la caja y total por método (finanzas.css de Django) ---------- */
+.aviso-caja {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  background-color: #ecfdf5;
+  color: #065f46;
+  font-size: 14px;
+}
+
+.aviso-caja .material-symbols-outlined {
+  color: #10b981;
+  font-size: 24px;
+}
+
+.aviso-caja strong {
+  margin-right: 6px;
+  font-weight: 700;
+}
+
+.aviso-caja a {
+  margin-left: auto;
+  color: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aviso-caja.cerrada {
+  border-color: #fde68a;
+  background-color: #fffbeb;
+  color: #92400e;
+}
+
+.aviso-caja.cerrada .material-symbols-outlined {
+  color: #f59e0b;
+}
+
+[data-tema="oscuro"] .aviso-caja {
+  border-color: #1f5c46;
+  background-color: #17382b;
+  color: #6ee7b7;
+}
+
+[data-tema="oscuro"] .aviso-caja.cerrada {
+  border-color: #6b5520;
+  background-color: #45361a;
+  color: #fcd34d;
+}
+
+.ventas-por-metodo {
+  margin: 24px 0 0;
+}
+
+.alerta-info-simple {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--texto-suave);
+}
+
+@media (max-width: 600px) {
+  .aviso-caja {
+    flex-wrap: wrap;
+  }
+
+  .aviso-caja a {
+    margin-left: 36px;
+  }
+}
