@@ -383,31 +383,33 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
         <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
       )}
 
-      <Tarjeta icono="receipt_long" titulo="Datos del pedido" className="tarjeta-mozos" extra={esEdicion ? `Mesa ${comanda.mesa_numero}` : undefined}>
-        <div className="datos-pedido">
-          <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
-          <div>
-            <label htmlFor="observaciones" className="form-label">
-              Observaciones (opcional)
-            </label>
-            <textarea
-              id="observaciones"
-              className="form-control"
-              rows={3}
-              maxLength={250}
-              placeholder="Ej: es un cumpleaños, festejo de fin de año, aniversario..."
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-            />
-          </div>
-        </div>
+      <Tarjeta icono="person" titulo="Mozo" className="tarjeta-mozos">
+        <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
       </Tarjeta>
 
-      {!esEdicion && (
-        <Tarjeta icono="table_restaurant" titulo="Mesa" className="tarjeta-plano">
+      <Tarjeta icono="table_restaurant" titulo="Mesa" className="tarjeta-plano">
+        {esEdicion ? (
+          <div className="mesa-fija">
+            <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
+          </div>
+        ) : (
           <PlanoMesas mesas={mesas.datos} elegida={mesa} onElegir={setMesa} />
-        </Tarjeta>
-      )}
+        )}
+        <div className="observaciones-mesa">
+          <label htmlFor="observaciones" className="form-label">
+            Observaciones (opcional)
+          </label>
+          <textarea
+            id="observaciones"
+            className="form-control"
+            rows={2}
+            maxLength={250}
+            placeholder="Ej: es un cumpleaños, festejo de fin de año, aniversario..."
+            value={observaciones}
+            onChange={(e) => setObservaciones(e.target.value)}
+          />
+        </div>
+      </Tarjeta>
 
       <div className="comanda-layout">
         <div className="comanda-izquierda">

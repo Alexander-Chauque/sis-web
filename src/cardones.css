@@ -1571,3 +1571,15 @@ a.plano-mesa:hover {
 .tarjeta-producto-info {
   flex: 1;
 }
+
+.observaciones-mesa {
+  margin-top: 16px;
+}
+
+.tarjeta-mozos .elegir-mozo legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
