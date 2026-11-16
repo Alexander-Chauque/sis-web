@@ -2484,3 +2484,76 @@ body:has(.cuenta-pagina) .footer {
   color: var(--texto-suave);
   font-size: 12px;
 }
+
+/* ---------- Reportes consolidados como pestañas de Reportes (consolidado.html de Django) ---------- */
+.filtros-consolidado {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.filtros-consolidado .filtros-reportes-fechas {
+  flex-wrap: wrap;
+}
+
+.consolidado-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.consolidado-cabecera h3 {
+  margin: 0 0 4px;
+}
+
+.consolidado-cabecera p {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 14px;
+}
+
+.chip-procesos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid #f5d7a1;
+  border-radius: 999px;
+  background: #fff8e7;
+  color: #b7791f;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.chip-procesos .material-symbols-outlined {
+  font-size: 18px;
+}
+
+[data-tema="oscuro"] .chip-procesos {
+  border-color: #6b5520;
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+}
+
+.tabla-consolidado-scroll {
+  overflow-x: auto;
+}
+
+.tabla-top.tabla-consolidado tfoot td {
+  border-top: 2px solid #f5a623;
+  background: #fff8e7;
+  font-weight: 700;
+}
+
+[data-tema="oscuro"] .tabla-top.tabla-consolidado tfoot td {
+  background: var(--acento-suave);
+}
+
+.nota-reporte {
+  margin-top: 10px;
+  color: var(--texto-suave);
+  font-size: 12px;
+}
