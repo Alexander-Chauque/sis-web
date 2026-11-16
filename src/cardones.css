@@ -1845,3 +1845,23 @@ button.plano-mesa:disabled {
 .cobro-vuelto.falta {
   color: var(--peligro);
 }
+
+/* ---------- Pasos numerados (1 Mozo, 2 Mesa, 3 Productos), como en Django ---------- */
+.paso-numero {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--acento);
+  color: #1f1a10;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Al editar: las mesas de otras comandas se ven, pero no se eligen */
+.plano-mesa--bloqueada {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

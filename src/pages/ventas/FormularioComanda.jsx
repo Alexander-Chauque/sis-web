@@ -85,11 +85,11 @@ const PESTANAS = [
 export default function FormularioComanda() {
   const { id } = useParams();
   const productos = useCarga("/comandas/productos/");
-  const mesas = useCarga(id ? null : "/mesas/");
+  const mesas = useCarga("/mesas/");
   const comanda = useCarga(id ? `/comandas/${id}/` : null);
   const mozos = useCarga("/comandas/mozos/");
   // Comandas abiertas: para el panel de las mesas con pedido, la espera y "Tus mesas"
-  const abiertas = useCarga(id ? null : "/comandas/", { abiertas: "1" });
+  const abiertas = useCarga("/comandas/", { abiertas: "1" });
   const recargarPlano = () => {
     mesas.recargar();
     abiertas.recargar();
@@ -106,11 +106,17 @@ export default function FormularioComanda() {
 }
 
 // Tarjeta con título e ícono, como las de la pantalla de comandas de Django
-function Tarjeta({ icono, titulo, extra, children, className = "" }) {
+function Tarjeta({ icono, paso, titulo, extra, children, className = "" }) {
   return (
     <section className={`tarjeta-comanda ${className}`}>
       <div className="tarjeta-comanda-titulo">
-        <Icono nombre={icono} />
+        {paso ? (
+          <span className="paso-numero" aria-hidden="true">
+            {paso}
+          </span>
+        ) : (
+          <Icono nombre={icono} />
+        )}
         <h2>{titulo}</h2>
         {extra && <span className="tarjeta-comanda-extra">{extra}</span>}
       </div>
@@ -260,7 +266,7 @@ function PanelMesa({ lugar, comanda: original, ahora, onCerrar, onCobrar }) {
 }
 
 // Plano del local: una mesa libre se elige con un toque; una con pedido abre su panel
-function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
+function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio, comandaEditada }) {
   const { usuario } = useAuth();
   const notificar = useNotificar();
   const [cobrando, setCobrando] = useState(null); // comanda con el modal de pago abierto
@@ -273,14 +279,21 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
   const fuera = mesas.filter((m) => !enPlano.has(m.numero_mesa) && ["libre", "sin-pedido"].includes(estadoDeMesa(m)));
   const lugares = MESAS.map((lugar) => {
     const mesa = porNumero.get(lugar.numero);
-    return { ...lugar, mesa, estado: estadoDeMesa(mesa), comanda: mesa?.comanda_abierta ? comandaDe.get(mesa.comanda_abierta) : null };
+    // Al editar, la mesa de esta comanda cuenta como libre: se puede dejar o cambiar por otra
+    const propia = comandaEditada && mesa?.comanda_abierta === comandaEditada;
+    return {
+      ...lugar,
+      mesa,
+      estado: propia ? "libre" : estadoDeMesa(mesa),
+      comanda: mesa?.comanda_abierta && !propia ? comandaDe.get(mesa.comanda_abierta) : null,
+    };
   });
   const cuantas = (estado) => lugares.filter((l) => l.estado === estado).length;
   const demoradas = lugares.filter((l) => l.comanda && estaDemorada(l.comanda, minutosDesde(l.comanda.fecha_hora, ahora))).length;
   const actual = mesas.find((m) => String(m.id_mesa) === String(elegida));
   // Las mesas abiertas del mozo que usa el sistema, de la más antigua a la más nueva
   const misMesas = lugares
-    .filter((l) => l.comanda && usuario?.id_empleado && l.comanda.mozo_id === usuario.id_empleado)
+    .filter((l) => !comandaEditada && l.comanda && usuario?.id_empleado && l.comanda.mozo_id === usuario.id_empleado)
     .sort((a, b) => new Date(a.comanda.fecha_hora) - new Date(b.comanda.fecha_hora));
   const lugarPanel = lugares.find((l) => l.numero === panel && l.comanda);
 
@@ -340,7 +353,7 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
             <span className="plano-muestra plano-muestra--libre" /> Libre ({cuantas("libre")})
           </li>
           <li>
-            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")}): agregar o cobrar
+            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")}){!comandaEditada && ": agregar o cobrar"}
           </li>
           {cuantas("sin-pedido") > 0 && (
             <li>
@@ -350,10 +363,12 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
           <li>
             <span className="plano-muestra plano-muestra--elegida" /> Elegida
           </li>
-          <li>
-            <span className="plano-muestra plano-muestra--demorada" /> Demorada: más de {MINUTOS_DEMORA} min sin entregar
-            {demoradas > 0 && ` (${demoradas})`}
-          </li>
+          {!comandaEditada && (
+            <li>
+              <span className="plano-muestra plano-muestra--demorada" /> Demorada: más de {MINUTOS_DEMORA} min sin entregar
+              {demoradas > 0 && ` (${demoradas})`}
+            </li>
+          )}
         </ul>
       </div>
 
@@ -381,6 +396,13 @@ function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio }) {
             );
             if (l.estado === "libre" || l.estado === "sin-pedido") {
               return boton(l.mesa, texto, l.estado, { style: l.pos, "aria-label": `Mesa ${l.numero}, ${l.capacidad} lugares` });
+            }
+            if (l.estado === "ocupada" && comandaEditada) {
+              return (
+                <div key={l.numero} className="plano-mesa plano-mesa--ocupada plano-mesa--bloqueada" style={l.pos} title={`Mesa ${l.numero} · Con pedido de otra comanda`}>
+                  {texto}
+                </div>
+              );
             }
             if (l.estado === "ocupada") {
               const minutos = l.comanda ? minutosDesde(l.comanda.fecha_hora, ahora) : 0;
@@ -460,7 +482,7 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
   const [parametros] = useSearchParams();
   const navegar = useNavigate();
 
-  const [mesa, setMesa] = useState(parametros.get("mesa") || "");
+  const [mesa, setMesa] = useState(esEdicion ? String(comanda.mesa) : parametros.get("mesa") || "");
   // Por defecto, el que está usando el sistema (o el mozo que ya tenía la comanda)
   const [mozo, setMozo] = useState(String((esEdicion ? comanda.mozo_id : usuario?.id_empleado) ?? ""));
   const [observaciones, setObservaciones] = useState(comanda?.observaciones_comanda || "");
@@ -578,7 +600,9 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
     };
     setGuardando(true);
     try {
-      const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
+      const { data } = esEdicion
+        ? await api.patch(`/comandas/${id}/`, { ...cuerpo, ...(mesa && mesa !== String(comanda.mesa) ? { mesa: Number(mesa) } : {}) })
+        : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
       // Se va directo a imprimir el ticket; al terminar, vuelve al listado con el aviso
       const aviso = esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.`;
       navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1${esEdicion ? "&modificada=1" : ""}`, { state: { aviso, resaltar: data.id_comanda } });
@@ -593,27 +617,39 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
   return (
     <form onSubmit={guardar} className="contenedor-comanda">
       <Encabezado
-        titulo={esEdicion ? `Editar comanda #${id}` : "Registrar comanda"}
-        icono={esEdicion ? "edit_square" : "add"}
+        titulo={esEdicion ? `Editar comanda #${id}` : "Nueva comanda"}
+        subtitulo={
+          esEdicion
+            ? `Mesa ${comanda.mesa_numero} · desde las ${new Date(comanda.fecha_hora).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}. Cambiá la mesa, el mozo o los productos.`
+            : "Elegí el mozo, la mesa en el plano y los productos."
+        }
+        icono={esEdicion ? "edit" : "add"}
         volver={volver}
-      />
+      >
+        <Link className="btn btn-outline-secondary" to="/comandas">
+          <Icono nombre="list" /> Ver comandas
+        </Link>
+      </Encabezado>
       <Notificar texto={error || mesas.error || mozos.error} onListo={() => setError("")} />
       {!!Object.keys(minimos).length && (
-        <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
+        <Alerta tipo="warning">
+          Esta comanda ya tiene {dinero(comanda.total_pagado)} abonados. Podés agregar productos o aumentar cantidades, pero no quitar ni reducir lo que ya tenía.
+        </Alerta>
       )}
 
-      <Tarjeta icono="person" titulo="Mozo" className="tarjeta-mozos">
+      <Tarjeta paso={1} titulo="Mozo" className="tarjeta-mozos">
         <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
       </Tarjeta>
 
-      <Tarjeta icono="table_restaurant" titulo="Mesa" className="tarjeta-plano">
-        {esEdicion ? (
-          <div className="mesa-fija">
-            <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
-          </div>
-        ) : (
-          <PlanoMesas mesas={mesas.datos} abiertas={abiertas} elegida={mesa} onElegir={setMesa} onCambio={onCambioPlano} />
-        )}
+      <Tarjeta paso={2} titulo="Mesa" className="tarjeta-plano">
+        <PlanoMesas
+          mesas={mesas.datos}
+          abiertas={abiertas}
+          elegida={mesa}
+          onElegir={setMesa}
+          onCambio={onCambioPlano}
+          comandaEditada={esEdicion ? comanda.id_comanda : undefined}
+        />
         <div className="observaciones-mesa">
           <label htmlFor="observaciones" className="form-label">
             Observaciones (opcional)
@@ -632,7 +668,7 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
 
       <div className="comanda-layout">
         <div className="comanda-izquierda">
-          <Tarjeta icono="shopping_basket" titulo="Productos" extra="Tocá un producto para sumarlo.">
+          <Tarjeta paso={3} titulo="Productos" extra="Tocá un producto para sumarlo.">
             <div className="buscador-ingredientes mb-3">
               <Icono nombre="search" />
               <input type="search" placeholder="Buscar plato o bebida..." aria-label="Buscar producto" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
