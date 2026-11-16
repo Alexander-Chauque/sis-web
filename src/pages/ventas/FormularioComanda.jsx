@@ -140,9 +140,25 @@ function useMinuto() {
 }
 
 // Panel de una mesa con pedido: agregar productos, cobrar o ver la comanda
-function PanelMesa({ lugar, comanda, ahora, onCerrar }) {
+function PanelMesa({ lugar, comanda: original, ahora, onCerrar }) {
   const { puede } = useAuth();
   const boton = useRef(null);
+  // Al marcarla como entregada se actualiza acá mismo y aparece Cobrar
+  const [comanda, setComanda] = useState(original);
+  const [entregando, setEntregando] = useState(false);
+  const [error, setError] = useState("");
+  const entregar = async () => {
+    setEntregando(true);
+    try {
+      const { data } = await api.post(`/comandas/${comanda.id_comanda}/estado/`, { estado: "entregado" });
+      setComanda({ ...comanda, estado_comanda: data.estado_comanda, estado_nombre: data.estado_nombre });
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setEntregando(false);
+    }
+  };
+  const entregada = comanda.estado_comanda === "entregado";
   const cerrar = useRef(onCerrar);
   useEffect(() => {
     cerrar.current = onCerrar;
@@ -211,11 +227,18 @@ function PanelMesa({ lugar, comanda, ahora, onCerrar }) {
                     <Icono nombre="add_shopping_cart" /> Agregar productos
                   </Link>
                 )}
-                {puedeModificar && saldo > 0 && (
+                {/* Solo se cobra lo que ya se entregó en la mesa */}
+                {puedeModificar && saldo > 0 && entregada && (
                   <Link to={`/comandas/${comanda.id_comanda}?cobrar=1`} className="btn btn-outline-secondary panel-mesa-boton">
                     <Icono nombre="payments" /> Cobrar
                   </Link>
                 )}
+                {puedeModificar && !entregada && (
+                  <button type="button" className="btn btn-outline-secondary panel-mesa-boton" disabled={entregando} onClick={entregar}>
+                    <Icono nombre="room_service" /> {entregando ? "Guardando..." : "Marcar como entregada"}
+                  </button>
+                )}
+                {error && <p className="panel-mesa-error">{error}</p>}
                 <Link to={`/comandas/${comanda.id_comanda}`} className="panel-mesa-ver">
                   Ver la comanda completa
                 </Link>

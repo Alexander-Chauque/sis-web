@@ -1767,3 +1767,10 @@ button.plano-mesa:disabled {
   background-color: #fef3c7;
   color: #92400e;
 }
+
+.panel-mesa-error {
+  margin: 0;
+  color: var(--peligro);
+  font-size: 13px;
+  text-align: center;
+}

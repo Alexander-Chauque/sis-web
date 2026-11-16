@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Cargando } from "../../components/Cargando";
 import { Alerta, Campo, Encabezado, InsigniaComanda, Modal } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
+import { Icono } from "../../components/Icono";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { useConfirmar } from "../../hooks/useConfirmar";
@@ -153,11 +154,17 @@ export default function DetalleComanda() {
             Editar productos
           </Link>
         )}
-        {puedeModificar && comanda.esta_abierta && Number(comanda.saldo_pendiente) > 0 && (
-          <button type="button" className="btn btn-marca" onClick={() => setVentana("cobro")}>
-            Cobrar
-          </button>
-        )}
+        {puedeModificar && comanda.esta_abierta && Number(comanda.saldo_pendiente) > 0 &&
+          // Solo se cobra lo que ya se entregó en la mesa
+          (comanda.estado_comanda === "entregado" ? (
+            <button type="button" className="btn btn-marca" onClick={() => setVentana("cobro")}>
+              Cobrar
+            </button>
+          ) : (
+            <button type="button" className="btn btn-marca" disabled={enviando} onClick={() => cambiarEstado("entregado")}>
+              <Icono nombre="room_service" /> Marcar como entregada
+            </button>
+          ))}
       </Encabezado>
       <Notificar tipo="success" texto={aviso} onListo={() => setAviso("")} />
       <Notificar texto={!ventana && error} onListo={() => setError("")} />
@@ -282,7 +289,7 @@ export default function DetalleComanda() {
         </div>
       </div>
 
-      {ventana === "cobro" && comanda.esta_abierta && Number(comanda.saldo_pendiente) > 0 && puedeModificar && (
+      {ventana === "cobro" && comanda.esta_abierta && comanda.estado_comanda === "entregado" && Number(comanda.saldo_pendiente) > 0 && puedeModificar && (
         <Cobro
           comanda={comanda}
           onCerrar={() => setVentana(null)}
