@@ -11,13 +11,6 @@ import { useConfirmar } from "../../hooks/useConfirmar";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, fechaHora, montoValido, opcionesAnularComanda, textoMonto } from "../../utils/formato";
 
-// Losmétodos que acepta el modelo Pago
-const METODOS_PAGO = [
-  { valor: "efectivo", nombre: "Efectivo" },
-  { valor: "tarjeta", nombre: "Tarjeta de débito/crédito" },
-  { valor: "transferencia", nombre: "Transferencia" },
-  { valor: "mercadopago", nombre: "Mercado Pago" },
-];
 const ESTADOS_ABIERTOS = [
   { valor: "pendiente", nombre: "Pendiente" },
   { valor: "en_preparacion", nombre: "En preparación" },
@@ -26,7 +19,9 @@ const ESTADOS_ABIERTOS = [
 
 function Cobro({ comanda, onCerrar, onListo }) {
   const [tipo, setTipo] = useState("total");
-  const [metodo, setMetodo] = useState("efectivo");
+  // Los métodos de pago activos que se cargaron en Finanzas
+  const metodos = useCarga("/comandas/metodos-pago/");
+  const [metodo, setMetodo] = useState("");
   const [monto, setMonto] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -37,11 +32,12 @@ function Cobro({ comanda, onCerrar, onListo }) {
     if (tipo === "parcial" && Number(textoMonto(monto)) > Number(comanda.saldo_pendiente)) {
       return setError(`El monto no puede superar el saldo de ${dinero(comanda.saldo_pendiente)}.`);
     }
+    if (!metodo) return setError("Elegí el método de pago.");
     setEnviando(true);
     try {
       const { data } = await api.post(`/comandas/${comanda.id_comanda}/pago/`, {
         tipo_pago: tipo,
-        metodo_pago: metodo,
+        metodo_pago: Number(metodo),
         monto: tipo === "parcial" ? textoMonto(monto) : undefined,
       });
       onListo(data);
@@ -53,7 +49,7 @@ function Cobro({ comanda, onCerrar, onListo }) {
 
   return (
     <Modal titulo={`Cobrar comanda #${comanda.id_comanda}`} onCerrar={onCerrar} onEnviar={enviar} enviando={enviando} textoEnviar="Registrar pago">
-      <Alerta>{error}</Alerta>
+      <Alerta>{error || metodos.error}</Alerta>
       <p className="fs-5">
         Saldo pendiente: <strong>{dinero(comanda.saldo_pendiente)}</strong>
       </p>
@@ -78,8 +74,9 @@ function Cobro({ comanda, onCerrar, onListo }) {
       )}
       <Campo id="metodo-pago" etiqueta="Método de pago *" className="mb-0">
         <select id="metodo-pago" className="form-select" value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-          {METODOS_PAGO.map((m) => (
-            <option key={m.valor} value={m.valor}>
+          <option value="">{metodos.datos ? "Elegí..." : "Cargando..."}</option>
+          {(metodos.datos || []).map((m) => (
+            <option key={m.id} value={m.id}>
               {m.nombre}
             </option>
           ))}
