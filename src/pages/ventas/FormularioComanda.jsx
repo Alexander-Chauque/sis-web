@@ -1,5 +1,6 @@
 // Tomar un pedido nuevo o cambiar los productos de una comanda abierta
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
@@ -287,13 +288,37 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
 
   const total = pedido.reduce((suma, i) => suma + Number(i.precio) * i.cantidad, 0);
 
+  // Producto con la ventana de notas abierta, y el último sumado (para marcarlo un instante)
+  const [notasDe, setNotasDe] = useState(null);
+  const [recien, setRecien] = useState(null);
+  const marca = useRef(null);
+  useEffect(() => () => clearTimeout(marca.current), []);
+
   // Suma uno a la línea del producto que no tiene nota; si no hay, abre una línea nueva
-  const agregar = (producto) =>
+  const agregar = (producto) => {
+    setRecien(clave(producto));
+    clearTimeout(marca.current);
+    marca.current = setTimeout(() => setRecien(null), 400);
+    sumarUno(producto);
+  };
+  const sumarUno = (producto) =>
     setPedido((actual) => {
       const existe = actual.find((i) => clave(i) === clave(producto) && !i.nota);
       if (existe) return actual.map((i) => (i === existe ? { ...i, cantidad: Math.min(MAXIMO, i.cantidad + 1) } : i));
       return [...actual, nuevaLinea({ tipo: producto.tipo, id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: 1, nota: "" })];
     });
+
+  // El resumen muestra una fila por producto, sumando sus líneas
+  const grupos = [];
+  pedido.forEach((i) => {
+    const grupo = grupos.find((g) => g.k === clave(i));
+    if (grupo) {
+      grupo.cantidad += i.cantidad;
+      grupo.ultima = i;
+    } else {
+      grupos.push({ k: clave(i), item: i, cantidad: i.cantidad, ultima: i });
+    }
+  });
 
   // ¿Se puede bajar esta línea a esa cantidad sin quedar debajo de lo ya cobrado?
   const permitido = (item, cantidad) => {
@@ -357,6 +382,10 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
         <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
       )}
 
+      <Tarjeta icono="person" titulo="Mozo" className="tarjeta-mozos" extra={esEdicion ? `Mesa ${comanda.mesa_numero}` : undefined}>
+        <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
+      </Tarjeta>
+
       {!esEdicion && (
         <Tarjeta icono="table_restaurant" titulo="Mesa" className="tarjeta-plano">
           <PlanoMesas mesas={mesas.datos} elegida={mesa} onElegir={setMesa} />
@@ -365,35 +394,7 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
 
       <div className="comanda-layout">
         <div className="comanda-izquierda">
-          <Tarjeta icono="receipt_long" titulo="Datos del pedido">
-            {esEdicion && (
-              <div className="mb-3">
-                <span className="form-label d-block">Mesa</span>
-                <div className="mesa-fija">
-                  <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
-                </div>
-              </div>
-            )}
-
-            <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
-
-            <div>
-              <label htmlFor="observaciones" className="form-label">
-                Observaciones (opcional)
-              </label>
-              <textarea
-                id="observaciones"
-                className="form-control"
-                rows={3}
-                maxLength={250}
-                placeholder="Ej: sin cebolla, bien cocida ..."
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
-            </div>
-          </Tarjeta>
-
-          <Tarjeta icono="shopping_basket" titulo="Agregar productos" extra="Seleccioná platos y bebidas para la comanda.">
+          <Tarjeta icono="shopping_basket" titulo="Productos" extra="Tocá un producto para sumarlo.">
             <div className="buscador-ingredientes mb-3">
               <Icono nombre="search" />
               <input type="search" placeholder="Buscar plato o bebida..." aria-label="Buscar producto" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
@@ -427,20 +428,58 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
               </div>
             )}
             <div className="grilla-productos">
-              {visibles.map((p) => (
-                <div key={clave(p)} className="tarjeta-producto">
-                  <div className="tarjeta-producto-info">
-                    <strong>{p.nombre}</strong>
-                    <small>
-                      {p.tipo === "plato" ? "Platos" : "Bebidas"} | {p.categoria}
-                    </small>
-                    <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
+              {visibles.map((p) => {
+                const lineas = pedido.filter((i) => clave(i) === clave(p));
+                const cantidad = lineas.reduce((s, i) => s + i.cantidad, 0);
+                const notas = lineas.filter((i) => i.nota.trim());
+                return (
+                  // Toda la tarjeta se toca para sumar, como en Django
+                  <div
+                    key={clave(p)}
+                    className={`tarjeta-producto producto-card ${cantidad ? "en-pedido" : ""} ${recien === clave(p) ? "recien-agregado" : ""}`}
+                    onClick={() => agregar(p)}
+                  >
+                    {cantidad > 0 && <span className="prod-en-pedido">{cantidad} en el pedido</span>}
+                    <div className="tarjeta-producto-info">
+                      <div className="producto-nombre-fila">
+                        <strong>{p.nombre}</strong>
+                        {cantidad > 0 && (
+                          <button
+                            type="button"
+                            className={`btn-nota-producto ${notas.length ? "con-nota" : ""}`}
+                            title="Nota para este producto"
+                            aria-label={`Nota para ${p.nombre}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNotasDe(clave(p));
+                            }}
+                          >
+                            <Icono nombre="edit_note" /> Nota
+                          </button>
+                        )}
+                      </div>
+                      <small>
+                        {p.tipo === "plato" ? "Platos" : "Bebidas"} | {p.categoria}
+                      </small>
+                      {notas.length > 0 && (
+                        <span className="producto-notas">{notas.map((i) => `${i.cantidad} ${i.nota}`).join(" · ")}</span>
+                      )}
+                      <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="boton-agregar"
+                      aria-label={`Agregar ${p.nombre}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        agregar(p);
+                      }}
+                    >
+                      <Icono nombre="add" />
+                    </button>
                   </div>
-                  <button type="button" className="boton-agregar" aria-label={`Agregar ${p.nombre}`} onClick={() => agregar(p)}>
-                    <Icono nombre="add" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {!visibles.length && <p className="text-secondary">No hay productos disponibles con esa búsqueda.</p>}
             </div>
           </Tarjeta>
@@ -455,67 +494,51 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
               </div>
             ) : (
               <ul className="lista-pedido">
-                {pedido.map((item) => (
-                  <li key={item.linea} className="item-carrito">
+                {/* Una fila por producto (las notas se ven y se cambian en la tarjeta del producto) */}
+                {grupos.map(({ k, item, cantidad, ultima }) => (
+                  <li key={k} className="item-carrito">
                     <div className="flex-grow-1 min-w-0">
                       <div className="fw-semibold text-truncate">{item.nombre}</div>
                       <div className="small text-secondary">
-                        {dinero(item.precio)} · <strong>{dinero(Number(item.precio) * item.cantidad)}</strong>
+                        {dinero(item.precio)} · <strong>{dinero(Number(item.precio) * cantidad)}</strong>
                       </div>
                     </div>
                     <div className="contador-cantidad">
-                      <button type="button" aria-label={`Quitar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad - 1)}>
-                        <Icono nombre={item.cantidad === 1 && permitido(item, 0) ? "delete" : "remove"} />
+                      <button type="button" aria-label={`Quitar uno de ${item.nombre}`} onClick={() => cambiarCantidad(ultima, ultima.cantidad - 1)}>
+                        <Icono nombre={cantidad === 1 && permitido(ultima, 0) ? "delete" : "remove"} />
                       </button>
                       <input
                         inputMode="numeric"
                         aria-label={`Cantidad de ${item.nombre}`}
-                        value={item.cantidad}
+                        value={cantidad}
                         onChange={(e) => {
                           const n = Number(e.target.value.replace(/\D/g, ""));
-                          if (n) cambiarCantidad(item, n);
+                          // La diferencia se aplica a la última línea del producto
+                          if (n && ultima.cantidad + n - cantidad >= 1) cambiarCantidad(ultima, ultima.cantidad + n - cantidad);
                         }}
                       />
-                      <button type="button" aria-label={`Agregar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad + 1)}>
+                      <button type="button" aria-label={`Agregar uno de ${item.nombre}`} onClick={() => sumarUno(item)}>
                         <Icono nombre="add" />
                       </button>
-                    </div>
-                    <div className="nota-linea">
-                      <input
-                        type="text"
-                        className="form-control form-control-sm nota-item"
-                        maxLength={120}
-                        aria-label={`Nota para ${item.nombre}`}
-                        placeholder={item.tipo === "bebida" ? "Nota para el bar (ej: sin hielo)" : "Nota para la cocina (ej: sin sal)"}
-                        value={item.nota}
-                        onChange={(e) => cambiarNota(item, e.target.value)}
-                      />
-                      <div className="notas-rapidas" role="group" aria-label={`Notas rápidas para ${item.nombre}`}>
-                        {NOTAS[item.tipo].map((nota) => {
-                          const activa = tieneNota(item.nota, nota);
-                          return (
-                            <button
-                              key={nota}
-                              type="button"
-                              className={`nota-rapida ${activa ? "activa" : ""}`}
-                              aria-pressed={activa}
-                              onClick={() => cambiarNota(item, alternarNota(item.nota, nota))}
-                            >
-                              {nota}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {item.cantidad > 1 && (
-                        <button type="button" className="btn-separar" onClick={() => separar(item)}>
-                          <Icono nombre="call_split" /> Separar una con otra nota
-                        </button>
-                      )}
                     </div>
                   </li>
                 ))}
               </ul>
             )}
+            <div className="observaciones-pedido">
+              <label htmlFor="observaciones" className="form-label">
+                Observaciones (opcional)
+              </label>
+              <textarea
+                id="observaciones"
+                className="form-control"
+                rows={2}
+                maxLength={250}
+                placeholder="Ej: traer todo junto"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              />
+            </div>
             <div className="total-pedido">
               <span>Total</span>
               <strong>{dinero(total)}</strong>
@@ -534,6 +557,108 @@ function Editor({ id, productos, mesas, comanda, mozos }) {
           </Tarjeta>
         </aside>
       </div>
+      {notasDe && (
+        <NotasProducto
+          lineas={pedido.filter((i) => clave(i) === notasDe)}
+          onNota={cambiarNota}
+          onSeparar={separar}
+          onCerrar={() => setNotasDe(null)}
+        />
+      )}
     </form>
+  );
+}
+
+// Ventana para escribir la nota de un producto, con notas rápidas y la opción de separar una unidad
+function NotasProducto({ lineas, onNota, onSeparar, onCerrar }) {
+  const caja = useRef(null);
+  const cerrar = useRef(onCerrar);
+  useEffect(() => {
+    cerrar.current = onCerrar;
+  });
+  useEffect(() => {
+    caja.current?.querySelector("input")?.focus();
+    const alPresionar = (e) => e.key === "Escape" && cerrar.current();
+    document.addEventListener("keydown", alPresionar);
+    return () => document.removeEventListener("keydown", alPresionar);
+  }, []);
+  // Si se borraron todas las unidades, la ventana ya no tiene qué mostrar
+  useEffect(() => {
+    if (!lineas.length) cerrar.current();
+  }, [lineas.length]);
+  if (!lineas.length) return null;
+  const { nombre, tipo } = lineas[0];
+
+  return createPortal(
+    <>
+      <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="titulo-notas" onClick={(e) => e.target === e.currentTarget && onCerrar()}>
+        <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-content" ref={caja}>
+            <div className="modal-header">
+              <div className="modal-icono" aria-hidden="true">
+                <Icono nombre="edit_note" />
+              </div>
+              <div className="modal-titulos">
+                <h2 className="modal-title" id="titulo-notas">
+                  Nota para {nombre}
+                </h2>
+              </div>
+              <button type="button" className="btn-cerrar-modal" aria-label="Cerrar" onClick={onCerrar}>
+                <Icono nombre="close" />
+              </button>
+            </div>
+            <div className="modal-body">
+              {lineas.map((item, n) => (
+                <div key={item.linea} className="nota-linea">
+                  {lineas.length > 1 && (
+                    <span className="nota-linea-titulo">
+                      {item.cantidad} {item.cantidad === 1 ? "unidad" : "unidades"}
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    className="form-control nota-item"
+                    maxLength={120}
+                    aria-label={`Nota ${n + 1} para ${nombre}`}
+                    placeholder={tipo === "bebida" ? "Nota para el bar (ej: sin hielo)" : "Nota para la cocina (ej: sin sal)"}
+                    value={item.nota}
+                    onChange={(e) => onNota(item, e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onCerrar())}
+                  />
+                  <div className="notas-rapidas" role="group" aria-label="Notas rápidas">
+                    {NOTAS[tipo].map((nota) => {
+                      const activa = tieneNota(item.nota, nota);
+                      return (
+                        <button
+                          key={nota}
+                          type="button"
+                          className={`nota-rapida ${activa ? "activa" : ""}`}
+                          aria-pressed={activa}
+                          onClick={() => onNota(item, alternarNota(item.nota, nota))}
+                        >
+                          {nota}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {item.cantidad > 1 && (
+                    <button type="button" className="btn-separar" onClick={() => onSeparar(item)}>
+                      <Icono nombre="call_split" /> Separar una con otra nota
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-marca" onClick={onCerrar}>
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>,
+    document.body,
   );
 }
