@@ -1375,7 +1375,7 @@ a.plano-mesa:hover {
 }
 
 .btn-separar:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 /* Nota de un producto en el ticket y en el detalle */
@@ -2299,4 +2299,55 @@ button.plano-mesa:disabled {
   .aviso-caja a {
     margin-left: 36px;
   }
+}
+
+/* ---------- Enlaces sin subrayado: color de marca y cambio de color al pasar ---------- */
+a {
+  text-decoration: none;
+}
+
+.contenido a:not(.btn, .btn-icon, .breadcrumb-item, .sidebar-item, .inicio-indicador, .modulo-card, .stat-card, .plano-mesa) {
+  color: var(--acento-texto);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.contenido a:not(.btn, .btn-icon, .breadcrumb-item, .sidebar-item, .inicio-indicador, .modulo-card, .stat-card, .plano-mesa):hover {
+  color: var(--acento-hover);
+  text-decoration: none;
+}
+
+/* Los que van dentro de un texto de color (aviso de caja, filas) toman ese color */
+.contenido :is(.aviso-caja, .text-reset) a,
+.contenido a.text-reset {
+  color: inherit !important;
+}
+
+.contenido .aviso-caja a {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.contenido .aviso-caja a:hover {
+  background-color: #ffffff;
+}
+
+[data-tema="oscuro"] .contenido .aviso-caja a {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ---------- Iniciales del usuario: blancas sobre el naranja ---------- */
+.user-avatar {
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(120, 60, 0, 0.25);
+}
+
+.contenido a.inicio-mesa {
+  color: var(--texto);
+}
+
+.contenido a.inicio-mesa:hover {
+  color: var(--acento-texto);
 }

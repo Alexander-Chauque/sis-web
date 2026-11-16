@@ -236,7 +236,7 @@
 }
 
 .inicio-enlace:hover {
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .inicio-enlace .material-symbols-outlined {
@@ -311,7 +311,7 @@
 
 .inicio-mesa:hover {
   color: var(--acento-texto);
-  text-decoration: underline;
+  text-decoration: none;
 }
 
 .inicio-secundario {
