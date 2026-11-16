@@ -1,49 +1,19 @@
-// Inicio de sesión
+// Inicio de sesión, igual al de Django (templates/login.html y static/css/login.css):
+// la marca sobre la foto de la peña a la izquierda y la tarjeta con el formulario a la derecha.
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 
+import "../login.css";
 import { Cargando } from "../components/Cargando";
 import { Icono } from "../components/Icono";
 import { useAuth } from "../context/AuthContext";
-import { api, mensajeDeError, URL_BASE } from "../services/api";
+import { api, mensajeDeError, tokens, URL_BASE } from "../services/api";
 import { AYUDA_CLAVE } from "../utils/formato";
-
-// Las ondas
-function Ondas() {
-  return (
-    <svg className="onda-svg" viewBox="0 0 500 900" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <linearGradient id="gradNaranjaSup" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#E0951A" />
-          <stop offset="100%" stopColor="#F5A623" />
-        </linearGradient>
-        <linearGradient id="gradNaranjaInf1" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#F5A623" />
-          <stop offset="100%" stopColor="#E0951A" />
-        </linearGradient>
-        <linearGradient id="gradNaranjaInf2" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#E0951A" />
-          <stop offset="100%" stopColor="#C06C0F" />
-        </linearGradient>
-        <linearGradient id="gradBlanco" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" className="onda-blanca-arriba" />
-          <stop offset="100%" className="onda-blanca-abajo" />
-        </linearGradient>
-      </defs>
-      <path d="M0 210 C90 170 155 195 235 220 C330 250 410 315 500 325 L500 365 C400 350 325 290 235 260 C145 230 75 225 0 270 Z" fill="url(#gradNaranjaSup)" />
-      <path d="M0 270 C75 225 145 230 235 260 C325 290 400 350 500 365" fill="none" stroke="#FFF8EC" strokeWidth="5" />
-      <path d="M0 270 C75 225 145 230 235 260 C325 290 400 350 500 365 L500 650 C405 685 330 725 245 690 C155 655 80 610 0 645 Z" fill="url(#gradBlanco)" />
-      <path d="M0 645 C80 610 155 655 245 690 C330 725 405 685 500 650 L500 690 C405 730 330 770 245 735 C155 700 80 655 0 690 Z" fill="url(#gradNaranjaInf1)" />
-      <path d="M0 690 C80 655 155 700 245 735 C330 770 405 730 500 690 L500 725 C405 770 330 805 245 770 C155 735 80 690 0 730 Z" fill="url(#gradNaranjaInf2)" />
-      <path d="M0 730 C80 690 155 735 245 770 C330 805 405 770 500 725" fill="none" stroke="#FFF8EC" strokeWidth="4" />
-    </svg>
-  );
-}
 
 function CampoClave({ id, etiqueta, valor, onCambiar, autoComplete, autoFocus }) {
   const [visible, setVisible] = useState(false);
   return (
-    <div className="grupo-campo-login">
+    <div className="grupo-campo">
       <label htmlFor={id}>{etiqueta}</label>
       <div className="input-con-icono">
         <Icono nombre="lock" />
@@ -65,10 +35,24 @@ function CampoClave({ id, etiqueta, valor, onCambiar, autoComplete, autoFocus })
   );
 }
 
+function AlertaLogin({ texto, onCerrar }) {
+  if (!texto) return null;
+  return (
+    <div className="alerta alerta-error" role="alert">
+      <Icono nombre="error" />
+      <span className="alerta-texto">{texto}</span>
+      <button type="button" className="alerta-cerrar" aria-label="Cerrar" onClick={onCerrar}>
+        <Icono nombre="close" />
+      </button>
+    </div>
+  );
+}
+
 export default function Login() {
   const { usuario, cargando, iniciarSesion } = useAuth();
   const [identificador, setIdentificador] = useState("");
   const [contrasena, setContrasena] = useState("");
+  const [recordar, setRecordar] = useState(false);
   // Con una contraseña temporal, primero hay que elegir una nueva
   const [debeCambiar, setDebeCambiar] = useState(false);
   const [nueva, setNueva] = useState("");
@@ -79,12 +63,17 @@ export default function Login() {
   if (cargando) return <Cargando />;
   if (usuario) return <Navigate to="/" replace />;
 
+  const entrar = async (clave) => {
+    tokens.recordar(recordar);
+    await iniciarSesion(identificador.trim(), clave);
+  };
+
   const enviar = async (evento) => {
     evento.preventDefault();
     setError("");
     setEnviando(true);
     try {
-      await iniciarSesion(identificador.trim(), contrasena);
+      await entrar(contrasena);
     } catch (e) {
       if (e.response?.data?.codigo === "debe_cambiar_contrasena") setDebeCambiar(true);
       else setError(mensajeDeError(e));
@@ -99,7 +88,7 @@ export default function Login() {
     setEnviando(true);
     try {
       await api.post("/token/cambiar-clave/", { username: identificador.trim(), password: contrasena, nueva, confirmar });
-      await iniciarSesion(identificador.trim(), nueva);
+      await entrar(nueva);
     } catch (e) {
       setError(mensajeDeError(e));
       setEnviando(false);
@@ -107,88 +96,107 @@ export default function Login() {
   };
 
   return (
-    <main className="login-container">
-      <div className="login-imagen">
-        <div className="img-paisaje" />
-        <div className="img-empanadas" />
-        <Ondas />
-        <div className="contenido-logo">
-          <img src="/img/logo.png" alt="Los Cardones" className="logo-onda" />
+    <div className="vista-login">
+      <div className="login-container">
+        {/* Lado izquierdo: la marca sobre la foto de la peña */}
+        <div className="login-marca">
+          <img src="/img/logo.png" alt="Los Cardones" className="logo-marca" />
           <p className="slogan">SABORES QUE NOS UNEN</p>
+          <p className="marca-frase">Tradición, música y gastronomía del norte argentino</p>
         </div>
-      </div>
 
-      <div className="login-formulario">
-        <div className="form-contenido">
-          <h1>{debeCambiar ? "Nueva contraseña" : "Iniciar sesión"}</h1>
-          <p className="subtitulo-login">
-            {debeCambiar ? "Tu contraseña es temporal. Antes de continuar, elegí una nueva." : "Accedé a tu cuenta para continuar con Los Cardones."}
-          </p>
-          <div className="linea-naranja" />
-
-          {error && (
-            <div className="alerta-error" role="alert">
-              <Icono nombre="error" />
-              {error}
+        {/* Lado derecho: la tarjeta con el formulario */}
+        <div className="login-formulario">
+          <div className="tarjeta-login">
+            <div className="tarjeta-aviso">
+              <Icono nombre="verified_user" />
+              Acceso exclusivo para el personal de la peña.
             </div>
-          )}
 
-          {debeCambiar ? (
-            <form onSubmit={cambiarYEntrar}>
-              <CampoClave id="nueva" etiqueta="Contraseña nueva" valor={nueva} onCambiar={setNueva} autoComplete="new-password" autoFocus />
-              <p className="ayuda-clave">{AYUDA_CLAVE}</p>
-              <CampoClave id="confirmar" etiqueta="Repetí la contraseña nueva" valor={confirmar} onCambiar={setConfirmar} autoComplete="new-password" />
-              <button type="submit" className="btn-login" disabled={enviando}>
-                <Icono nombre="save" /> {enviando ? "Guardando..." : "Guardar e ingresar"}
-              </button>
-              <button
-                type="button"
-                className="btn-volver-login"
-                onClick={() => {
-                  setDebeCambiar(false);
-                  setContrasena("");
-                  setError("");
-                }}
-              >
-                <Icono nombre="arrow_back" /> Volver
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={enviar}>
-              <div className="grupo-campo-login">
-                <label htmlFor="identificador">Usuario o correo electrónico</label>
-                <div className="input-con-icono">
-                  <Icono nombre="mail" />
-                  <input
-                    id="identificador"
-                    placeholder="ejemplo@correo.com"
-                    autoComplete="username"
-                    autoFocus
-                    required
-                    value={identificador}
-                    onChange={(e) => setIdentificador(e.target.value)}
-                  />
-                </div>
-              </div>
-              <CampoClave id="contrasena" etiqueta="Contraseña" valor={contrasena} onCambiar={setContrasena} autoComplete="current-password" />
-              <div className="opciones-extra">
-                {/* La recuperación por correo la hace Django: el enlace del correo abre sus páginas */}
-                <a href={`${URL_BASE}/password-reset/`} className="olvide">
-                  ¿Olvidaste tu contraseña?
-                </a>
-              </div>
-              <button type="submit" className="btn-login" disabled={enviando}>
-                <Icono nombre="login" /> {enviando ? "Ingresando..." : "Iniciar sesión"}
-              </button>
-            </form>
-          )}
+            <div className="form-contenido">
+              <h1>{debeCambiar ? "Nueva contraseña" : "¡Bienvenido de nuevo!"}</h1>
+              <p className="subtitulo">
+                {debeCambiar ? "Tu contraseña es temporal. Antes de continuar, elegí una nueva." : "Ingresá tus datos para continuar con Los Cardones."}
+              </p>
+              <div className="linea-naranja" />
 
-          <div className="ayuda-admin">
-            <Icono nombre="info" />
-            <p>Si tenés problemas para acceder, contactá con el administrador del sistema.</p>
+              {debeCambiar ? (
+                <form onSubmit={cambiarYEntrar}>
+                  <AlertaLogin texto={error} onCerrar={() => setError("")} />
+                  <CampoClave id="nueva" etiqueta="Contraseña nueva" valor={nueva} onCambiar={setNueva} autoComplete="new-password" autoFocus />
+                  <p className="ayuda-clave">{AYUDA_CLAVE}</p>
+                  <CampoClave id="confirmar" etiqueta="Repetí la contraseña nueva" valor={confirmar} onCambiar={setConfirmar} autoComplete="new-password" />
+                  <button type="submit" className="btn-login" disabled={enviando}>
+                    <Icono nombre="save" /> {enviando ? "Guardando..." : "Guardar e ingresar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-volver-login"
+                    onClick={() => {
+                      setDebeCambiar(false);
+                      setContrasena("");
+                      setError("");
+                    }}
+                  >
+                    <Icono nombre="arrow_back" /> Volver
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={enviar}>
+                  <AlertaLogin texto={error} onCerrar={() => setError("")} />
+
+                  {/* Campo: correo o usuario */}
+                  <div className="grupo-campo">
+                    <label htmlFor="identificador">Correo electrónico</label>
+                    <div className="input-con-icono">
+                      <Icono nombre="mail" />
+                      <input
+                        id="identificador"
+                        placeholder="ejemplo@correo.com"
+                        autoComplete="username"
+                        autoFocus
+                        required
+                        maxLength={254}
+                        value={identificador}
+                        onChange={(e) => setIdentificador(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <CampoClave id="contrasena" etiqueta="Contraseña" valor={contrasena} onCambiar={setContrasena} autoComplete="current-password" />
+
+                  {/* Recordar y olvidé contraseña */}
+                  <div className="opciones-extra">
+                    <label className="recordar">
+                      <input type="checkbox" checked={recordar} onChange={(e) => setRecordar(e.target.checked)} />
+                      <span>Recordar sesión</span>
+                    </label>
+                    {/* La recuperación por correo la hace Django: el enlace del correo abre sus páginas */}
+                    <a href={`${URL_BASE}/password-reset/`} className="olvide">
+                      ¿Olvidaste tu contraseña?
+                    </a>
+                  </div>
+
+                  <button type="submit" className="btn-login" disabled={enviando}>
+                    <Icono nombre="login" /> {enviando ? "Ingresando..." : "Iniciar sesión"}
+                  </button>
+                </form>
+              )}
+
+              <div className="ayuda-admin">
+                <Icono nombre="info" />
+                <p>Si tenés problemas para acceder, contactá con el administrador del sistema.</p>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Dirección abajo a la izquierda */}
+        <p className="login-direccion">
+          <Icono nombre="location_on" />
+          Balcarce 922 · Salta
+        </p>
       </div>
-    </main>
+    </div>
   );
 }

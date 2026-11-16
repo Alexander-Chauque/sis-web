@@ -4,18 +4,47 @@ import axios from "axios";
 export const URL_BASE = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
 const LLAVE_ACCESO = "sis_token_acceso";
 const LLAVE_RENOVACION = "sis_token_renovacion";
+const LLAVE_RECORDAR = "sis_recordar";
 
+// Con "Recordar sesión" los datos quedan en el navegador (localStorage); si no, se borran al cerrarlo
+function almacen() {
+  try {
+    return localStorage.getItem(LLAVE_RECORDAR) === "1" ? localStorage : sessionStorage;
+  } catch {
+    return sessionStorage;
+  }
+}
 
 export const tokens = {
-  acceso: () => sessionStorage.getItem(LLAVE_ACCESO),
-  renovacion: () => sessionStorage.getItem(LLAVE_RENOVACION),
+  acceso: () => almacen().getItem(LLAVE_ACCESO),
+  renovacion: () => almacen().getItem(LLAVE_RENOVACION),
   guardar: ({ access, refresh }) => {
-    sessionStorage.setItem(LLAVE_ACCESO, access);
-    if (refresh) sessionStorage.setItem(LLAVE_RENOVACION, refresh);
+    almacen().setItem(LLAVE_ACCESO, access);
+    if (refresh) almacen().setItem(LLAVE_RENOVACION, refresh);
   },
   borrar: () => {
-    sessionStorage.removeItem(LLAVE_ACCESO);
-    sessionStorage.removeItem(LLAVE_RENOVACION);
+    for (const lugar of [sessionStorage, localStorage]) {
+      try {
+        lugar.removeItem(LLAVE_ACCESO);
+        lugar.removeItem(LLAVE_RENOVACION);
+      } catch {
+        // Sin almacenamiento: no hay nada que borrar
+      }
+    }
+    try {
+      localStorage.removeItem(LLAVE_RECORDAR);
+    } catch {
+      // Sin almacenamiento
+    }
+  },
+  // Se llama al iniciar sesión, antes de guardar los datos
+  recordar: (si) => {
+    try {
+      if (si) localStorage.setItem(LLAVE_RECORDAR, "1");
+      else localStorage.removeItem(LLAVE_RECORDAR);
+    } catch {
+      // Sin almacenamiento: la sesión dura hasta cerrar el navegador
+    }
   },
 };
 
