@@ -1,103 +1,193 @@
-// Comprobante para el cliente y tickets para cocina, bar y parrilla. Se ven sin el menú, listos para imprimir.
+// Comprobante para el cliente y tickets para cocina, bar y parrilla, iguales a los de Django
+// (comanda_comprobante.html y comanda_ticket.html). Se ven sin el menú, listos para imprimir.
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import "../../comprobante.css";
+import "../../ticket.css";
 import { Cargando } from "../../components/Cargando";
 import { Alerta } from "../../components/Comunes";
+import { Icono } from "../../components/Icono";
+import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
-import { dinero, fecha, fechaHora } from "../../utils/formato";
+import { fecha } from "../../utils/formato";
 
-function Acciones({ id, children, volver, estado }) {
-  return (
-    <div className="d-flex flex-wrap justify-content-center gap-2 my-4 no-imprimir">
-      {children}
-      <Link className="btn btn-outline-secondary" to={volver || `/comandas/${id}`} state={volver ? estado : undefined}>
-        {volver ? "Volver a las comandas" : "Volver a la comanda"}
-      </Link>
-    </div>
-  );
-}
-
-const hora = (valor) => new Date(valor).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+const hora = (valor) => new Date(valor).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+const diaHora = (valor) => {
+  const f = new Date(valor);
+  return `${String(f.getDate()).padStart(2, "0")}/${String(f.getMonth() + 1).padStart(2, "0")} ${hora(f)}`;
+};
+// Pesos sin decimales y con punto de miles, como el "floatformat:0g" de Django
+const pesos = (valor) => `$ ${Math.round(Number(valor) || 0).toLocaleString("es-AR")}`;
+const seis = (n) => String(n).padStart(6, "0");
 
 export function Comprobante() {
   const { id } = useParams();
+  const { usuario } = useAuth();
   const { datos: comanda, cargando, error } = useCarga(`/comandas/${id}/`);
+  // Hora de emisión, tomada al abrir la pantalla
+  const [ahora] = useState(() => new Date());
   if (cargando) return <Cargando />;
   if (!comanda) return <Alerta>{error}</Alerta>;
 
+  const subtotal = (tipo) => comanda.items.filter((i) => i.tipo === tipo).reduce((s, i) => s + Number(i.precio) * i.cantidad, 0);
+  const subtotalPlatos = subtotal("plato");
+  const subtotalBebidas = subtotal("bebida");
+  const saldo = Number(comanda.saldo_pendiente);
+
   return (
-    <main className="pagina-impresion">
-      <section className="papel">
-        <h1 className="titulo-marca text-center h3 mb-0">Los Cardones</h1>
-        <p className="text-center small mb-3">Comprobante no válido como factura</p>
-        <div className="d-flex justify-content-between small">
-          <span>Comanda N.º {String(comanda.id_comanda).padStart(6, "0")}</span>
-          <span>Mesa {comanda.mesa_numero}</span>
-        </div>
-        <div className="d-flex justify-content-between small">
-          <span>{fecha(comanda.fecha_hora)}</span>
-          <span>{hora(comanda.fecha_hora)}</span>
-        </div>
-        <div className="small mb-2">Atendió: {comanda.mozo}</div>
-        <hr className="corte" />
-        <table className="w-100 small">
+    <div className="vista-comprobante">
+      <main className="comprobante">
+        {["anulado", "cancelado"].includes(comanda.estado_comanda) && <div className="sello-anulado">ANULADA</div>}
+
+        <header className="comp-encabezado">
+          <img src="/img/ticket/logo.jpeg" alt="Los Cardones - Salta" className="comp-logo" />
+          <div className="comp-titulo">
+            <h1>Comprobante de venta</h1>
+            <dl className="comp-meta">
+              <dt>N° de comprobante</dt>
+              <dd className="comp-numero">{seis(comanda.id_comanda)}</dd>
+              <dt>Fecha</dt>
+              <dd>{fecha(comanda.fecha_hora)}</dd>
+              <dt>Hora</dt>
+              <dd>{hora(comanda.fecha_hora)}</dd>
+            </dl>
+          </div>
+        </header>
+
+        <section className="comp-partes">
+          <div>
+            <h2>Emitido por</h2>
+            <p className="comp-nombre">Peña Los Cardones</p>
+            <p>Restaurante folclórico</p>
+            <p>Balcarce 922, Salta - Argentina</p>
+            <p>Tel: (387) 123-4567</p>
+            <p>CUIT: 30-12345678-9</p>
+          </div>
+          <div className="derecha">
+            <h2>Detalle del servicio</h2>
+            <p className="comp-nombre">Mesa {comanda.mesa_numero}</p>
+            {comanda.mesa_ubicacion && <p>{comanda.mesa_ubicacion}</p>}
+            <p>Atendido por: {comanda.mozo || "Sin asignar"}</p>
+            <p>
+              Estado: <span className={`comp-estado estado-${comanda.estado_comanda}`}>{comanda.estado_nombre}</span>
+            </p>
+          </div>
+        </section>
+
+        <table className="comp-tabla">
           <thead>
             <tr>
-              <th>Cant.</th>
-              <th>Detalle</th>
-              <th className="text-end">Importe</th>
+              <th className="centrado">Cant.</th>
+              <th>Descripción</th>
+              <th className="derecha">P. unitario</th>
+              <th className="derecha">Subtotal</th>
             </tr>
           </thead>
           <tbody>
             {comanda.items.map((item, n) => (
               <tr key={n}>
-                <td>{item.cantidad}</td>
+                <td className="centrado">{item.cantidad}</td>
                 <td>
                   {item.nombre}
-                  <span className="d-block text-secondary">{dinero(item.precio)} c/u</span>
+                  <span className={`comp-tipo ${item.tipo === "bebida" ? "tipo-bebida" : ""}`}>{item.tipo === "bebida" ? "Bebida" : "Plato"}</span>
                 </td>
-                <td className="text-end">{dinero(Number(item.precio) * item.cantidad)}</td>
+                <td className="derecha">{pesos(item.precio)}</td>
+                <td className="derecha">{pesos(Number(item.precio) * item.cantidad)}</td>
               </tr>
             ))}
+            {!comanda.items.length && (
+              <tr>
+                <td colSpan={4} className="centrado comp-vacio">
+                  La comanda no tiene productos.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-        <hr className="corte" />
-        <div className="d-flex justify-content-between fw-bold fs-5">
-          <span>TOTAL</span>
-          <span>{dinero(comanda.total_comanda)}</span>
-        </div>
-        {comanda.pagos.map((p) => (
-          <div key={p.id_pago} className="d-flex justify-content-between small">
-            <span>
-              {p.metodo} ({fechaHora(p.fecha_hora)})
-            </span>
-            <span>{dinero(p.monto)}</span>
+
+        <section className="comp-resumen">
+          <div className="comp-info">
+            <h2>Forma de pago</h2>
+            {comanda.pagos.length ? (
+              <ul className="comp-pagos">
+                {comanda.pagos.map((p) => (
+                  <li key={p.id_pago}>
+                    <Icono nombre="payments" />
+                    <span>{p.metodo}</span>
+                    <span className="comp-pago-fecha">{diaHora(p.fecha_hora)}</span>
+                    <strong>{pesos(p.monto)}</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="comp-suave">Todavía no se registraron pagos.</p>
+            )}
+            {comanda.observaciones_comanda && (
+              <>
+                <h2>Observaciones</h2>
+                <p className="comp-suave">{comanda.observaciones_comanda}</p>
+              </>
+            )}
           </div>
-        ))}
-        {Number(comanda.total_pagado) > 0 && (
-          <div className="d-flex justify-content-between small fw-semibold">
-            <span>Saldo</span>
-            <span>{dinero(comanda.saldo_pendiente)}</span>
+
+          <div className="comp-totales">
+            {subtotalPlatos > 0 && (
+              <div className="fila">
+                <span>Platos</span>
+                <span>{pesos(subtotalPlatos)}</span>
+              </div>
+            )}
+            {subtotalBebidas > 0 && (
+              <div className="fila">
+                <span>Bebidas</span>
+                <span>{pesos(subtotalBebidas)}</span>
+              </div>
+            )}
+            <div className="fila fila-total">
+              <span>Total</span>
+              <span>{pesos(comanda.total_comanda)}</span>
+            </div>
+            <div className="fila">
+              <span>Pagado</span>
+              <span>{pesos(comanda.total_pagado)}</span>
+            </div>
+            <div className={`fila fila-saldo ${saldo ? "" : "saldado"}`}>
+              <span>{saldo ? "Saldo a pagar" : "Saldado"}</span>
+              <span>{pesos(saldo)}</span>
+            </div>
           </div>
-        )}
-        {comanda.estado_comanda === "anulado" && <p className="aviso-anulada mt-2">COMANDA ANULADA</p>}
-        <p className="text-center small mt-3 mb-0">¡Gracias por su visita!</p>
-      </section>
-      <Acciones id={id}>
-        <button type="button" className="btn btn-marca" onClick={() => window.print()}>
-          Imprimir comprobante
+        </section>
+
+        <footer className="comp-pie">
+          <p className="comp-gracias">¡Gracias por su visita!</p>
+          <p className="comp-suave">Tradición, música y gastronomía del norte argentino</p>
+          <p className="comp-legal">
+            Emitido por {usuario?.usuario} el {fecha(ahora)} {hora(ahora)} · Documento no válido como factura
+          </p>
+        </footer>
+      </main>
+
+      <div className="comprobante-acciones">
+        <button type="button" onClick={() => window.print()} className="btn-imprimir">
+          <Icono nombre="print" /> Imprimir
         </button>
-      </Acciones>
-    </main>
+        <Link to={`/comandas/${id}`} className="btn-volver">
+          <Icono nombre="receipt_long" /> Volver al detalle
+        </Link>
+        <Link to="/comandas" className="btn-volver">
+          <Icono nombre="list" /> Volver al listado
+        </Link>
+      </div>
+    </div>
   );
 }
 
 // Bebidas al bar, platos de la categoría Parrilla a la parrilla y el resto a la cocina, como en Django
 const ESTACIONES = [
-  { clave: "cocina", titulo: "PLATOS", destino: "Cocina" },
-  { clave: "bar", titulo: "BEBIDAS", destino: "Bar" },
-  { clave: "parrilla", titulo: "PARRILLA", destino: "Parrilla" },
+  { clave: "cocina", titulo: "PLATOS", destino: "Cocina", icono: "bandeja" },
+  { clave: "bar", titulo: "BEBIDAS", destino: "Bar", icono: "vaso-blanco" },
+  { clave: "parrilla", titulo: "PARRILLA", destino: "Parrilla", icono: "parrilla" },
 ];
 
 const estacionDe = (item) => {
@@ -108,6 +198,8 @@ const estacionDe = (item) => {
 export function Tickets() {
   const { id } = useParams();
   const { datos: comanda, cargando, error } = useCarga(`/comandas/${id}/`);
+  // Hora de emisión, tomada al abrir la pantalla
+  const [ahora] = useState(() => new Date());
   const [elegido, setElegido] = useState(null);
   const [parametros] = useSearchParams();
   const navegar = useNavigate();
@@ -115,8 +207,6 @@ export function Tickets() {
   const alGuardar = parametros.get("imprimir") === "1";
   const { aviso, resaltar } = useLocation().state || {};
   const modificada = parametros.get("modificada") === "1";
-  // Al volver al listado: el aviso de que se guardó y la comanda resaltada
-  const estadoListado = { aviso, resaltar };
   const impresa = useRef(false);
 
   useEffect(() => {
@@ -154,70 +244,105 @@ export function Tickets() {
   };
 
   return (
-    <main className="pagina-impresion">
-      <div className="tickets">
+    <div className={`vista-ticket ${elegido ? "imprimir-uno" : ""}`}>
+      <main className="tickets">
         {tickets.map((t) => (
-          <div key={t.clave} className={`ticket-columna ${elegido && elegido !== t.clave ? "no-imprimir" : ""} ${elegido === t.clave ? "ticket-elegido" : ""}`}>
-            <section className="papel">
-              <h1 className="titulo-marca text-center h4 mb-2">Los Cardones</h1>
-              <div className="ticket-banda">{t.titulo}</div>
-              <div className="small">
-                <div className="d-flex justify-content-between border-bottom py-1">
-                  <span><strong>Comanda N.º:</strong> {String(comanda.id_comanda).padStart(6, "0")}</span>
-                  <span><strong>Mesa:</strong> {String(comanda.mesa_numero).padStart(2, "0")}</span>
+          <div key={t.clave} className={`ticket-columna ${elegido === t.clave ? "ticket-elegido" : ""}`}>
+            <section className="ticket">
+              {anulada && <div className="ticket-sello">ANULADA</div>}
+
+              <header className="ticket-encabezado">
+                <img className="ticket-logo" src="/img/ticket/logo.jpeg" alt="Los Cardones - Salta" />
+                <div className="ticket-banda">
+                  <img src={`/img/ticket/${t.icono}.svg`} alt="" />
+                  <div>
+                    <span className="ticket-banda-titulo">{t.titulo}</span>
+                    <span className="ticket-banda-destino">Ticket para {t.destino.toLowerCase()}</span>
+                  </div>
                 </div>
-                <div className="d-flex justify-content-between border-bottom py-1">
-                  <span><strong>Fecha:</strong> {fecha(comanda.fecha_hora)}</span>
-                  <span><strong>Hora:</strong> {hora(comanda.fecha_hora)}</span>
+              </header>
+
+              <dl className="ticket-datos">
+                <div>
+                  <dt>Comanda N°</dt>
+                  <dd className="ticket-numero">{seis(comanda.id_comanda)}</dd>
                 </div>
-                <div className="py-1">
-                  <strong>Mozo:</strong> {comanda.mozo}
+                <div className="derecha">
+                  <dt>Mesa</dt>
+                  <dd className="ticket-mesa">{String(comanda.mesa_numero).padStart(2, "0")}</dd>
                 </div>
-              </div>
-              {anulada && <p className="aviso-anulada">COMANDA ANULADA: NO PREPARAR</p>}
-              {modificada && !anulada && <p className="aviso-anulada aviso-modificada">COMANDA MODIFICADA</p>}
-              <hr className="corte" />
-              <table className="w-100 tabla-ticket">
+                <div>
+                  <dt>Fecha</dt>
+                  <dd>{fecha(comanda.fecha_hora)}</dd>
+                </div>
+                <div className="derecha">
+                  <dt>Hora</dt>
+                  <dd>{hora(comanda.fecha_hora)}</dd>
+                </div>
+                <div className="ticket-dato-ancho">
+                  <dt>Mozo</dt>
+                  <dd>{comanda.mozo || "Sin asignar"}</dd>
+                </div>
+              </dl>
+
+              {anulada && <div className="ticket-anulada">Comanda anulada: no preparar</div>}
+              {modificada && <div className="ticket-aviso">COMANDA MODIFICADA</div>}
+
+              <table className="ticket-tabla">
                 <thead>
                   <tr>
-                    <th>Cant.</th>
+                    <th className="centrado">Cant.</th>
                     <th>Descripción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {t.productos.map((p, n) => (
                     <tr key={n}>
-                      <td className="fw-bold text-center">{p.cantidad}</td>
+                      <td className="ticket-cantidad">{p.cantidad}</td>
                       <td>
                         {p.nombre}
-                        {p.observacion && <span className="nota-producto">» {p.observacion}</span>}
+                        {p.observacion && <span className="ticket-nota">→ {p.observacion}</span>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <hr className="corte" />
+
               {comanda.observaciones_comanda && (
-                <div className="small">
-                  <strong>Observaciones:</strong>
-                  <p className="fst-italic mb-0">{comanda.observaciones_comanda}</p>
+                <div className="ticket-observaciones">
+                  <h2>Observaciones</h2>
+                  <p>{comanda.observaciones_comanda}</p>
                 </div>
               )}
+
+              <footer className="ticket-pie">
+                {t.productos.length} producto{t.productos.length === 1 ? "" : "s"} · impreso el {diaHora(ahora)}
+              </footer>
             </section>
-            <button type="button" className="btn btn-marca w-100 mt-2 no-imprimir" onClick={() => imprimir(t.clave)}>
+
+            <button type="button" className="ticket-boton no-print" onClick={() => imprimir(t.clave)}>
+              <Icono nombre="print" />
               Imprimir ticket de {t.destino.toLowerCase()}
             </button>
           </div>
         ))}
-        {!tickets.length && <p className="text-center">Esta comanda no tiene productos para preparar.</p>}
-      </div>
-      <Acciones id={id} volver={alGuardar ? "/comandas" : undefined} estado={estadoListado}>
+        {!tickets.length && <p className="tickets-vacio">Esta comanda no tiene productos para preparar.</p>}
+      </main>
+
+      <div className="tickets-acciones no-print">
         {tickets.length > 1 && (
-          <button type="button" className="btn btn-marca" onClick={() => window.print()}>
+          <button type="button" className="ticket-boton" onClick={() => window.print()}>
+            <Icono nombre="print" />
             Imprimir los {tickets.length} tickets
           </button>
         )}
-      </Acciones>
-    </main>
+        <Link to={`/comandas/${id}`} className="ticket-volver">
+          <Icono nombre="receipt_long" /> Volver al detalle
+        </Link>
+        <Link to="/comandas" className="ticket-volver" state={alGuardar ? { aviso, resaltar } : undefined}>
+          <Icono nombre="list" /> {alGuardar ? "Ir al listado de comandas" : "Volver al listado"}
+        </Link>
+      </div>
+    </div>
   );
 }
