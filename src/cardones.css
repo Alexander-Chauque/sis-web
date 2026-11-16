@@ -2124,3 +2124,104 @@ button.plano-mesa:disabled {
     gap: 10px;
   }
 }
+
+/* ---------- Avisos flotantes: lo que salió bien, sin mover la pantalla ---------- */
+.avisos-flotantes {
+  position: fixed;
+  top: 76px;
+  right: 20px;
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.aviso-flotante {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 10px 12px 14px;
+  border: 1px solid var(--borde);
+  border-left: 4px solid #10b981;
+  border-radius: 10px;
+  background-color: var(--fondo-panel);
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.16);
+  color: var(--texto);
+  font-family: var(--fuente-ui);
+  pointer-events: auto;
+  animation: aviso-entra 0.22s ease-out;
+}
+
+.aviso-flotante p {
+  flex: 1;
+  margin: 1px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.aviso-flotante-icono {
+  flex-shrink: 0;
+  color: #10b981;
+  font-size: 22px !important;
+}
+
+.aviso-warning { border-left-color: var(--acento); }
+.aviso-warning .aviso-flotante-icono { color: var(--acento); }
+.aviso-info { border-left-color: #3b82f6; }
+.aviso-info .aviso-flotante-icono { color: #3b82f6; }
+
+.aviso-flotante-cerrar {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.aviso-flotante-cerrar:hover {
+  background-color: var(--topbar-boton);
+  color: var(--texto);
+}
+
+.aviso-flotante-cerrar .material-symbols-outlined {
+  font-size: 18px;
+}
+
+@keyframes aviso-entra {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* En celular: abajo al centro, a lo ancho */
+@media (max-width: 600px) {
+  .avisos-flotantes {
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    align-items: stretch;
+    width: auto;
+  }
+
+  @keyframes aviso-entra {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aviso-flotante {
+    animation: none;
+  }
+}
