@@ -1,0 +1,349 @@
+/* Caja: detalle, arqueo y cierre igual a Django (comandas.css, finanzas.css, base.css y pulido.css),
+   acotado a .vista-caja para no tocar otras pantallas. */
+.vista-caja .tarjeta-comanda {
+  background-color: #fff;
+  border: 1px solid var(--borde, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  margin-bottom: 25px;
+  overflow: hidden;
+  height: fit-content;
+}
+
+.vista-caja .titulo-tarjeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.vista-caja .titulo-tarjeta h2 {
+  font-family: "Oswald", sans-serif;
+  font-size: 18px;
+  color: #3d3d3d;
+  margin: 0;
+}
+
+.vista-caja .titulo-tarjeta .material-symbols-outlined {
+  color: #f5a623;
+}
+
+.vista-caja .cuerpo-tarjeta {
+  padding: 20px;
+}
+
+.vista-caja .layout-comanda {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 25px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .vista-caja .layout-comanda {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vista-caja .grupo-campo {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.vista-caja .grupo-campo:last-child {
+  margin-bottom: 0;
+}
+
+.vista-caja .grupo-campo > label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.vista-caja .grupo-campo label span {
+  color: #dc2626;
+}
+
+.vista-caja .grupo-campo small {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.vista-caja .form-control[readonly] {
+  background-color: #f7fafc;
+}
+
+.vista-caja .form-control-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 15px;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  background-color: #f7fafc;
+  font-size: 14px;
+  color: #3d3d3d;
+  resize: vertical;
+}
+
+.vista-caja .form-control-textarea:focus {
+  outline: none;
+  border-color: #f5a623;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
+}
+
+.vista-caja .select-con-icono {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  background: #f7fafc;
+  overflow: hidden;
+}
+
+.vista-caja .select-con-icono:focus-within {
+  border-color: #f5a623;
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.15);
+}
+
+.vista-caja .select-con-icono > .material-symbols-outlined {
+  padding: 10px 12px;
+  color: #6b7280;
+  border-right: 1px solid #cbd5e0;
+}
+
+.vista-caja .select-con-icono input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.vista-caja .alerta-info {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 15px 20px;
+  margin: 15px 0 0;
+  background: #fff8e7;
+  border: 1px solid #feebc8;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.vista-caja .alerta-info > .material-symbols-outlined {
+  color: #dd6b20;
+}
+
+.vista-caja .mozo-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: #f7fafc;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+}
+
+.vista-caja .avatar-mozo {
+  display: flex;
+  padding: 5px;
+  border-radius: 50%;
+  background: #e2e8f0;
+}
+
+.vista-caja .nombre-mozo {
+  display: block;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.vista-caja .rol-mozo-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px solid #ffcf76;
+  border-radius: 4px;
+  background-color: #f5a623;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.vista-caja .estado-caja {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: "Oswald", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.vista-caja .estado-caja .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.vista-caja .estado-caja.abierta {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.vista-caja .estado-caja.cerrada {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.vista-caja .resumen-cuenta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vista-caja .resumen-cuenta li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e2e8f0;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.vista-caja .resumen-cuenta li:last-child {
+  border-bottom: none;
+}
+
+.vista-caja .resumen-cuenta li > span:last-child {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: #2d3748;
+}
+
+.vista-caja .resumen-cuenta li.suma > span:last-child {
+  color: #059669;
+}
+
+.vista-caja .resumen-cuenta li.resta > span:last-child {
+  color: #dc2626;
+}
+
+.vista-caja .resumen-cuenta li.total {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 10px;
+  background-color: #fff8e7;
+  font-family: "Oswald", sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.vista-caja .resumen-cuenta li.total > span {
+  color: #b7791f !important;
+  font-weight: 600;
+}
+
+.vista-caja .resumen-nota {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background-color: #f7fafc;
+  color: #4a5568;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.vista-caja .resumen-nota .material-symbols-outlined {
+  color: #718096;
+  font-size: 20px;
+}
+
+.vista-caja .diferencia-positiva {
+  color: #059669 !important;
+  font-weight: 600;
+}
+
+.vista-caja .diferencia-negativa {
+  color: #dc2626 !important;
+  font-weight: 600;
+}
+
+.vista-caja .text-gris {
+  color: #6b7280 !important;
+  font-size: 13px;
+}
+
+.vista-caja .tabla-caja {
+  overflow-x: auto;
+}
+
+.vista-caja .tabla {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+.vista-caja .tabla thead th {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.vista-caja .tabla tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f2f4;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.vista-caja .tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vista-caja .tabla tbody tr:hover {
+  background-color: #fafafa;
+}
+
+/* Botones de abajo: Volver, Realizar arqueo, Cerrar caja */
+.vista-caja .botones-carrito,
+.vista-caja .acciones-formulario {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  padding-bottom: 30px;
+}
+
+.vista-caja .cuerpo-tarjeta .botones-carrito {
+  padding-bottom: 0;
+}
+
+.vista-caja .botones-carrito .btn,
+.vista-caja .acciones-formulario .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

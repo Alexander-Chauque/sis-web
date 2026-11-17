@@ -146,7 +146,11 @@ export default function Cajas() {
                       <div className="acciones-tabla">
                         <BotonAccion tipo="ver" titulo={`Ver detalle de la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}`} />
                         {c.estado_caja === "abierto" && puede("caja:modificar") && (
-                          <BotonAccion tipo="desactivar" icono="lock" titulo={`Arqueo y cierre de la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}`} />
+                          // Como en Django: arqueo y cierre, cada uno en su pantalla
+                          <>
+                            <BotonAccion tipo="editar" icono="fact_check" titulo={`Arqueo de la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}/arqueo`} />
+                            <BotonAccion tipo="desactivar" icono="lock" titulo={`Cerrar la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}/cierre`} />
+                          </>
                         )}
                       </div>
                     </td>

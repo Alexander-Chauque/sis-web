@@ -11,7 +11,7 @@ import Asistencias, { TiposAsistencia } from "./pages/empleados/Asistencias";
 import Cargos, { Permisos } from "./pages/empleados/Cargos";
 import Empleados from "./pages/empleados/Empleados";
 import Cajas from "./pages/finanzas/Cajas";
-import DetalleCaja from "./pages/finanzas/DetalleCaja";
+import DetalleCaja, { ArqueoCaja, CerrarCaja } from "./pages/finanzas/DetalleCaja";
 import Gastos from "./pages/finanzas/Gastos";
 import Ventas from "./pages/finanzas/Ventas";
 import Bebidas from "./pages/inventario/Bebidas";
@@ -49,6 +49,8 @@ const PANTALLAS = [
   { ruta: "comandas/:id/editar", permiso: "comandas:modificar", Pantalla: FormularioComanda },
   { ruta: "finanzas/cajas", permiso: "caja:leer", Pantalla: Cajas },
   { ruta: "finanzas/cajas/:id", permiso: "caja:leer", Pantalla: DetalleCaja },
+  { ruta: "finanzas/cajas/:id/arqueo", permiso: "caja:modificar", Pantalla: ArqueoCaja },
+  { ruta: "finanzas/cajas/:id/cierre", permiso: "caja:modificar", Pantalla: CerrarCaja },
   { ruta: "finanzas/gastos", permiso: "caja:leer", Pantalla: Gastos },
   { ruta: "finanzas/ventas", permiso: "ventas:leer", Pantalla: Ventas },
   { ruta: "finanzas/categorias-gasto", permiso: "caja:leer", Pantalla: Catalogo, props: { config: CATALOGOS.categoriasGasto } },
