@@ -100,7 +100,6 @@ export default function Panel() {
 
   const nombre = usuario?.nombre?.split(" ")[0] || usuario?.usuario;
   const fecha = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
-  const porcentaje = resumen?.mesas_totales ? Math.round((resumen.mesas_ocupadas / resumen.mesas_totales) * 100) : 0;
 
   const activas = (comandas.datos || []).filter((c) => ESTADOS_ACTIVOS.includes(c.estado_comanda));
   const recientes = activas.slice(0, MAXIMO_COMANDAS);
@@ -132,27 +131,25 @@ export default function Panel() {
           {verProductos && (
             <Indicador a="/inventario" icono="inventory_2" nombre="Productos en inventario" valor={resumen.productos} detalle="Platos y bebidas disponibles" />
           )}
-          {verMesas && (
-            <Indicador
-              a="/mesas"
-              icono="table_restaurant"
-              nombre="Mesas ocupadas"
-              valor={
-                <>
-                  {resumen.mesas_ocupadas} <small>de {resumen.mesas_totales}</small>
-                </>
-              }
-              detalle={`${porcentaje}% de ocupación`}
-            />
-          )}
+          {/* La ocupación de mesas y las comandas activas ya están en los paneles de abajo:
+              arriba van los números del día que no se repiten */}
           {verComandas && (
-            <Indicador
-              a="/comandas?estado=pendiente,en_preparacion"
-              icono="receipt_long"
-              nombre="Comandas pendientes"
-              valor={resumen.comandas_pendientes}
-              detalle={`${resumen.comandas_en_preparacion} en preparación`}
-            />
+            <>
+              <Indicador
+                a="/comandas"
+                icono="receipt_long"
+                nombre="Comandas de hoy"
+                valor={resumen.comandas_hoy}
+                detalle={resumen.comandas_hoy ? `Ticket promedio ${pesos(resumen.ticket_promedio)}` : "Todavía no se tomaron pedidos"}
+              />
+              <Indicador
+                a="/comandas?estado=entregado"
+                icono="payments"
+                nombre="Por cobrar"
+                valor={pesos(resumen.por_cobrar_monto)}
+                detalle={`${resumen.por_cobrar_cantidad} ${resumen.por_cobrar_cantidad === 1 ? "entregada" : "entregadas"} sin cobrar · ${resumen.comandas_pendientes} sin entregar`}
+              />
+            </>
           )}
           {verCaja && cajas.datos && (
             <Indicador
