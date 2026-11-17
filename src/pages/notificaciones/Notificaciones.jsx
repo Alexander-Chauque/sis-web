@@ -9,6 +9,7 @@ import { Encabezado, Vacio } from "../../components/Comunes";
 import { Icono } from "../../components/Icono";
 import { CabeceraResultados, FiltroBuscar, FiltroCasillas, ListadoLayout, PaginacionNumeros, PanelFiltros } from "../../components/Listado";
 import { Notificar } from "../../components/Mensajes";
+import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { useNotificar } from "../../hooks/useNotificar";
 import { api, mensajeDeError } from "../../services/api";
@@ -34,7 +35,11 @@ const ESTADOS = [
 // Tipo y estado con casillas, como en Django: sin ninguna marcada se muestran todas
 const FILTROS_VACIOS = { buscar: "", tipos: [], estados: [] };
 
+// Nivel del cargo Administrador (empleados/decorators.py de Django)
+const NIVEL_ADMINISTRADOR = 5;
+
 export default function Notificaciones() {
+  const { usuario } = useAuth();
   // Lo que se marca en el panel y lo que ya se aplicó con "Aplicar"
   const [borrador, setBorrador] = useState(FILTROS_VACIOS);
   const [filtros, setFiltros] = useState({ ...FILTROS_VACIOS, pagina: 1, por_pagina: 10 });
@@ -72,6 +77,25 @@ export default function Notificaciones() {
     }
   };
 
+  // Revisa ahora las reglas de comandas demoradas y cajas abiertas (lo mismo que evaluar_alertas.bat).
+  // Las alertas nuevas quedan en la bandeja y Django las manda también por correo.
+  const revisarAhora = async () => {
+    setOcupado(true);
+    try {
+      const { data } = await api.post("/notificaciones/evaluar/");
+      const nuevas = data.comandas_demoradas + data.cajas_abiertas;
+      if (nuevas) {
+        actualizar(`${nuevas} alerta${nuevas === 1 ? "" : "s"} nueva${nuevas === 1 ? "" : "s"}: quedaron en la bandeja y se enviaron por correo.`);
+      } else {
+        notificar("No hay alertas nuevas: no hay comandas demoradas ni cajas abiertas de más.", "info");
+      }
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   const marcarTodas = async () => {
     setOcupado(true);
     try {
@@ -88,6 +112,11 @@ export default function Notificaciones() {
   return (
     <div className="contenedor-listado">
       <Encabezado titulo="Notificaciones" subtitulo="Alertas automáticas del sistema para tu perfil." icono="notifications">
+        {usuario?.nivel >= NIVEL_ADMINISTRADOR && (
+          <button type="button" className="btn btn-outline-secondary" disabled={ocupado} onClick={revisarAhora}>
+            <Icono nombre="notification_add" /> Revisar alertas ahora
+          </button>
+        )}
         <button type="button" className="btn btn-marca" disabled={ocupado} onClick={marcarTodas}>
           <Icono nombre="done_all" /> Marcar todas como leídas
         </button>
