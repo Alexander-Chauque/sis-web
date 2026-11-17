@@ -9,7 +9,6 @@ import { Icono } from "../../components/Icono";
 import { Notificar } from "../../components/Mensajes";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
-import { api, mensajeDeError } from "../../services/api";
 import { Cobro } from "./Cobro";
 
 // Insignia de estado de Django: color e ícono por estado
@@ -32,7 +31,7 @@ const fechaYHora = (valor) => {
 export default function DetalleComanda() {
   const { id } = useParams();
   const { puede } = useAuth();
-  const { datos: comanda, cargando, error: errorCarga, setDatos } = useCarga(`/comandas/${id}/`);
+  const { datos: comanda, cargando, error: errorCarga } = useCarga(`/comandas/${id}/`);
   const [parametros] = useSearchParams();
   // Con ?cobrar=1 se abre el cobro directamente
   const [cobrando, setCobrando] = useState(() => !!parametros.get("cobrar"));
@@ -40,7 +39,6 @@ export default function DetalleComanda() {
   // Al volver del comprobante después de cobrar llega el aviso del cobro
   const { state } = useLocation();
   const [aviso, setAviso] = useState(state?.aviso || "");
-  const [enviando, setEnviando] = useState(false);
 
   if (cargando) return <Cargando />;
   if (!comanda) return <Alerta>{errorCarga}</Alerta>;
@@ -48,21 +46,6 @@ export default function DetalleComanda() {
   const puedeModificar = puede("comandas:modificar");
   const estado = ESTADOS[comanda.estado_comanda] || { clase: "badge-pendiente", icono: "pending", texto: comanda.estado_nombre.toUpperCase() };
   const puedeCobrar = puedeModificar && comanda.esta_abierta && comanda.estado_comanda === "entregado" && Number(comanda.saldo_pendiente) > 0;
-  const sinEntregar = puedeModificar && ["pendiente", "en_preparacion"].includes(comanda.estado_comanda);
-
-  // Solo se cobra lo entregado: desde acá se la puede marcar como entregada
-  const entregar = async () => {
-    setEnviando(true);
-    try {
-      const { data } = await api.post(`/comandas/${id}/estado/`, { estado: "entregado" });
-      setDatos(data);
-      setAviso(`Comanda #${id}: ${data.estado_nombre}.`);
-    } catch (e) {
-      setError(mensajeDeError(e));
-    } finally {
-      setEnviando(false);
-    }
-  };
 
   return (
     <div className="contenedor-comanda detalle-comanda">
@@ -215,11 +198,6 @@ export default function DetalleComanda() {
         <Link to={`/comandas/${id}/tickets`} className="btn btn-outline-secondary">
           <Icono nombre="print" /> Imprimir ticket
         </Link>
-        {sinEntregar && (
-          <button type="button" className="btn btn-marca" disabled={enviando} onClick={entregar}>
-            <Icono nombre="room_service" /> Marcar como entregada
-          </button>
-        )}
         {puedeCobrar && (
           <button type="button" className="btn btn-marca" onClick={() => setCobrando(true)}>
             <Icono nombre="payments" /> Cobrar

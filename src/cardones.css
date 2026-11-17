@@ -1772,6 +1772,9 @@ button.plano-mesa:disabled {
 .btn-icon.btn-cobrar { background-color: #d1fae5; color: #065f46; }
 .btn-icon.btn-cobrar:is(:hover, :focus-visible) { background-color: #065f46; color: #fff; }
 [data-tema="oscuro"] .btn-icon.btn-cobrar { background-color: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+/* Marcar como entregada, desde el listado de comandas */
+.btn-icon.btn-entregar { background-color: #e0f2fe; color: #075985; }
+.btn-icon.btn-entregar:is(:hover, :focus-visible) { background-color: #075985; color: #fff; }
 
 .cobro-saldo {
   display: flex;

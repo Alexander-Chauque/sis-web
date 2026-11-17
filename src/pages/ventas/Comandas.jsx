@@ -172,6 +172,19 @@ export default function Comandas() {
                     <td className="text-nowrap">{fechaHora(c.fecha_hora)}</td>
                     <td>
                       <div className="acciones-tabla">
+                        {/* Entregar el pedido en la mesa: después ya se puede cobrar */}
+                        {puedeModificar && ["pendiente", "en_preparacion"].includes(c.estado_comanda) && (
+                          <button
+                            type="button"
+                            className="btn-icon btn-entregar"
+                            title={`Marcar la comanda #${c.id_comanda} como entregada`}
+                            aria-label={`Marcar la comanda #${c.id_comanda} como entregada`}
+                            disabled={enviando}
+                            onClick={() => cambiarEstado(c, "entregado")}
+                          >
+                            <Icono nombre="room_service" />
+                          </button>
+                        )}
                         {/* Cobrar en el lugar, solo lo que ya se entregó (como en Django) */}
                         {puedeModificar && c.estado_comanda === "entregado" && Number(c.saldo_pendiente) > 0 && (
                           <button type="button" className="btn-icon btn-cobrar" title={`Cobrar la comanda #${c.id_comanda}`} aria-label={`Cobrar la comanda #${c.id_comanda}`} onClick={() => setCobrando(c)}>
