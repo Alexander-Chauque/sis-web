@@ -74,11 +74,11 @@ export function Cobro({ comanda, onCerrar }) {
       </div>
 
       <fieldset className="mb-3">
-        <legend className="form-label">¿Cómo desea abonar?</legend>
+        <legend className="form-label">¿Cuánto se paga ahora?</legend>
         <div className="cobro-opciones">
           {[
-            ["total", "Pagar todo de una vez"],
-            ["parcial", "Pagar por partes"],
+            ["total", "Toda la cuenta"],
+            ["parcial", "Solo una parte"],
           ].map(([valor, nombre]) => (
             <label key={valor} className={`cobro-opcion ${tipo === valor ? "elegida" : ""}`}>
               <input type="radio" name="tipo-pago" checked={tipo === valor} onChange={() => setTipo(valor)} />
@@ -100,7 +100,16 @@ export function Cobro({ comanda, onCerrar }) {
       </Campo>
 
       {tipo === "parcial" && (
-        <Campo id="monto-pago" etiqueta="Monto a abonar *" prefijo="$">
+        <Campo
+          id="monto-pago"
+          etiqueta="¿Cuánto de la cuenta se paga ahora? *"
+          prefijo="$"
+          ayuda={
+            Number(textoMonto(monto)) > 0 && Number(textoMonto(monto)) < saldo
+              ? `Después de este pago quedan ${dinero(saldo - Number(textoMonto(monto)))} por pagar.`
+              : "Por ejemplo, si cada uno paga lo suyo. El resto queda pendiente en la comanda."
+          }
+        >
           <input id="monto-pago" className="form-control" inputMode="decimal" placeholder="Ej: 1500" value={monto} onChange={(e) => setMonto(e.target.value)} />
         </Campo>
       )}
@@ -108,12 +117,18 @@ export function Cobro({ comanda, onCerrar }) {
       {/* Solo con métodos que permiten dar vuelto (por ejemplo, Efectivo) */}
       {elegido?.permite_cambio && (
         <>
-          <Campo id="monto-recibido" etiqueta="Monto recibido (opcional)" prefijo="$" className="mb-0">
+          <Campo
+            id="monto-recibido"
+            etiqueta="¿Con cuánto paga el cliente? (opcional)"
+            prefijo="$"
+            className="mb-0"
+            ayuda="Los billetes que te da. Sirve solo para calcular el vuelto."
+          >
             <input
               id="monto-recibido"
               className="form-control"
               inputMode="decimal"
-              placeholder="Con cuánto paga el cliente"
+              placeholder="Ej: 10000"
               value={recibido}
               onChange={(e) => setRecibido(e.target.value)}
             />

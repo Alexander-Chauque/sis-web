@@ -629,7 +629,7 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
       <Notificar tipo="success" texto={avisoCobro} />
       {!!Object.keys(minimos).length && (
         <Alerta tipo="warning">
-          Esta comanda ya tiene {dinero(comanda.total_pagado)} abonados. Podés agregar productos o aumentar cantidades, pero no quitar ni reducir lo que ya tenía.
+          Ya se pagaron {dinero(comanda.total_pagado)} de esta comanda. Podés agregar productos o subir cantidades, pero no quitar ni bajar lo que ya estaba, porque parte ya está cobrado.
         </Alerta>
       )}
 
