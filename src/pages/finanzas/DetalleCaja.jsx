@@ -1,5 +1,7 @@
-// Detalle, arqueo y cierre de caja igual a Django (finanzas/templates/CAJA):
-// detalle_caja.html, arqueo_caja.html y cerrar_caja.html, con la cuenta del cajón de _resumen_saldos.html.
+// La caja, explicada paso a paso para que se entienda el recorrido:
+// 1) se abre con el efectivo del cajón, 2) durante el turno se suman cobros y restan gastos,
+// 3) al cerrar se cuenta el efectivo y se compara con lo que debería haber.
+// "Contar efectivo" (arqueo) es un control a mitad de turno y no cierra la caja.
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -13,106 +15,22 @@ import { api, mensajeDeError } from "../../services/api";
 import { dinero, fechaHora, montoValido, textoMonto } from "../../utils/formato";
 import "../../caja.css";
 
-// "$1.234,50" sin espacio, como el resumen de Django
 const pesos = (valor) => dinero(valor).replace("$ ", "$");
+const hora = (valor) => new Date(valor).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+const diaHora = (valor) => {
+  const d = new Date(valor);
+  return `${d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} ${hora(valor)}`;
+};
 
-function Tarjeta({ icono, titulo, children }) {
+function Tarjeta({ icono, numero, titulo, children }) {
   return (
     <section className="tarjeta-comanda">
       <div className="titulo-tarjeta">
-        <Icono nombre={icono} />
+        {numero ? <span className="paso-numero">{numero}</span> : <Icono nombre={icono} />}
         <h2>{titulo}</h2>
       </div>
       <div className="cuerpo-tarjeta">{children}</div>
     </section>
-  );
-}
-
-// Dato de solo lectura con la misma forma que en Django (campo apagado)
-function CampoFijo({ etiqueta, valor, largo }) {
-  return (
-    <div className="grupo-campo">
-      <label>{etiqueta}</label>
-      {largo ? <textarea className="form-control-textarea" rows={4} readOnly value={valor} /> : <input type="text" className="form-control" readOnly value={valor} />}
-    </div>
-  );
-}
-
-function Aviso({ icono = "info", children }) {
-  return (
-    <div className="alerta-info">
-      <Icono nombre={icono} />
-      {children}
-    </div>
-  );
-}
-
-// La cuenta del cajón: solo entra el efectivo (CAJA/_resumen_saldos.html)
-function ResumenSaldos({ caja }) {
-  const diferencia = Number(caja.diferencia_caja);
-  return (
-    <>
-      <ul className="resumen-cuenta">
-        <li>
-          <span>Saldo inicial</span>
-          <span>{pesos(caja.saldo_inicial)}</span>
-        </li>
-        <li className="suma">
-          <span>+ Cobros en efectivo</span>
-          <span>{pesos(caja.ventas_efectivo)}</span>
-        </li>
-        <li className="resta">
-          <span>− Gastos</span>
-          <span>{pesos(caja.total_egresos)}</span>
-        </li>
-        <li className="total">
-          <span>Saldo esperado en caja</span>
-          <span>{pesos(caja.saldo_esperado_actual)}</span>
-        </li>
-      </ul>
-      <p className="resumen-nota">
-        <Icono nombre="credit_card" />
-        <span>
-          Cobros con otros medios (tarjeta, transferencia...): <strong>{pesos(caja.ventas_otros_medios)}</strong>. No se suman porque no están en el cajón.
-        </span>
-      </p>
-      <ul className="resumen-cuenta">
-        <li>
-          <span>Total cobrado</span>
-          <span>
-            <strong>{pesos(caja.total_ventas)}</strong>
-          </span>
-        </li>
-        {caja.fecha_arqueo ? (
-          <>
-            <li>
-              <span>Saldo contado en el arqueo</span>
-              <span>{pesos(caja.saldo_contado)}</span>
-            </li>
-            <li>
-              <span>Diferencia del arqueo</span>
-              <span className={diferencia < 0 ? "diferencia-negativa" : "diferencia-positiva"}>
-                {diferencia > 0 ? "+" : ""}
-                {pesos(diferencia)} {diferencia < 0 ? "(falta)" : diferencia > 0 ? "(sobra)" : "(cuadra)"}
-              </span>
-            </li>
-          </>
-        ) : (
-          <li>
-            <span>Arqueo</span>
-            <span className="text-gris">Sin arqueo registrado</span>
-          </li>
-        )}
-        {caja.estado_caja !== "abierto" && (
-          <li>
-            <span>Saldo final al cierre</span>
-            <span>
-              <strong>{pesos(caja.saldo_final)}</strong>
-            </span>
-          </li>
-        )}
-      </ul>
-    </>
   );
 }
 
@@ -122,17 +40,87 @@ function useCaja() {
   return { id, ...carga };
 }
 
-function Responsable() {
-  const { usuario } = useAuth();
+// ¿Hubo cobros o gastos después del último conteo? Entonces ese conteo ya no coincide
+function movimientosDespuesDelConteo(caja) {
+  if (!caja.fecha_arqueo) return false;
+  const conteo = new Date(caja.fecha_arqueo);
+  return [...caja.pagos.map((p) => p.fecha_hora), ...caja.gastos.map((g) => g.fecha_hora_gasto)].some((f) => new Date(f) > conteo);
+}
+
+// La cuenta del cajón en tarjetas: al abrir + cobros en efectivo − gastos = debería haber
+function CuentaCajon({ caja }) {
   return (
-    <div className="mozo-info">
-      <div className="avatar-mozo">
-        <Icono nombre="account_circle" />
+    <>
+      <div className="cuenta-cajon" aria-label="Cuenta del efectivo en el cajón">
+        <div className="cuenta-cajon-item">
+          <span className="cuenta-cajon-etiqueta">Al abrir</span>
+          <strong>{pesos(caja.saldo_inicial)}</strong>
+        </div>
+        <span className="cuenta-cajon-signo" aria-hidden="true">
+          +
+        </span>
+        <div className="cuenta-cajon-item cuenta-cajon-item--suma">
+          <span className="cuenta-cajon-etiqueta">Cobros en efectivo</span>
+          <strong>{pesos(caja.ventas_efectivo)}</strong>
+        </div>
+        <span className="cuenta-cajon-signo" aria-hidden="true">
+          −
+        </span>
+        <div className="cuenta-cajon-item cuenta-cajon-item--resta">
+          <span className="cuenta-cajon-etiqueta">Gastos</span>
+          <strong>{pesos(caja.total_egresos)}</strong>
+        </div>
+        <span className="cuenta-cajon-signo" aria-hidden="true">
+          =
+        </span>
+        <div className="cuenta-cajon-item cuenta-cajon-item--total">
+          <span className="cuenta-cajon-etiqueta">Debería haber en el cajón</span>
+          <strong>{pesos(caja.saldo_esperado_actual)}</strong>
+        </div>
       </div>
-      <div>
-        <span className="nombre-mozo">{usuario?.nombre || usuario?.usuario}</span>
-        <span className="rol-mozo-badge">{usuario?.cargo || "Sin cargo asignado"}</span>
+      <p className="resumen-nota">
+        <Icono nombre="credit_card" />
+        <span>
+          Además se cobraron <strong>{pesos(caja.ventas_otros_medios)}</strong> con tarjeta, transferencia u otros medios (total cobrado:{" "}
+          <strong>{pesos(caja.total_ventas)}</strong>). No se cuentan en el cajón porque no son billetes.
+        </span>
+      </p>
+      {Number(caja.saldo_esperado_actual) < 0 && (
+        <p className="aviso-conteo viejo">
+          <Icono nombre="warning" />
+          <span>
+            Da negativo porque los gastos superan al efectivo que entró. Puede pasar si algún gasto se pagó con otra plata (no del cajón) o si al abrir no se cargó el
+            efectivo inicial.
+          </span>
+        </p>
+      )}
+    </>
+  );
+}
+
+// Campo del efectivo contado: la diferencia aparece mientras se escribe
+function ContarEfectivo({ esperado, valor, onCambiar }) {
+  const contado = parseFloat(String(valor).replace(",", "."));
+  const hay = valor !== "" && !Number.isNaN(contado);
+  const diferencia = hay ? Math.round((contado - Number(esperado)) * 100) / 100 : 0;
+  const clase = diferencia === 0 ? "cuadra" : diferencia < 0 ? "falta" : "sobra";
+  return (
+    <div className="grupo-campo contar-efectivo">
+      <label htmlFor="saldo_contado">
+        ¿Cuánto efectivo hay en el cajón? <span>*</span>
+      </label>
+      <div className="select-con-icono">
+        <Icono nombre="attach_money" />
+        <input id="saldo_contado" type="number" step="0.01" min="0" inputMode="decimal" required autoFocus autoComplete="off" value={valor} onChange={(e) => onCambiar(e.target.value)} />
       </div>
+      <small>Contá los billetes y monedas y escribí el total. Debería haber {pesos(esperado)}.</small>
+      {hay && (
+        <p className={`contar-efectivo-diferencia ${clase}`} aria-live="polite">
+          {diferencia === 0
+            ? "Cuadra: hay justo lo que debería haber."
+            : `${diferencia < 0 ? "Faltan" : "Sobran"} ${pesos(Math.abs(diferencia))} respecto de lo que debería haber.`}
+        </p>
+      )}
     </div>
   );
 }
@@ -164,135 +152,213 @@ export default function DetalleCaja() {
   if (!caja) return <Alerta>{error}</Alerta>;
 
   const abierta = caja.estado_caja === "abierto";
+  const viejo = movimientosDespuesDelConteo(caja);
+  const diferencia = Number(caja.diferencia_caja);
+  const subtitulo = abierta
+    ? `Abierta el ${fechaHora(caja.fecha_apertura)} por ${caja.empleado_apertura}.`
+    : `Cerrada el ${fechaHora(caja.fecha_cierre)}${caja.empleado_cierre ? ` por ${caja.empleado_cierre}` : ""}.`;
 
   return (
     <div className="vista-caja">
-      <Encabezado titulo={`Detalle de caja #${caja.id_caja}`} subtitulo="Consulta la información y los movimientos de la caja." icono="point_of_sale" volver="/finanzas/cajas" />
+      <Encabezado titulo={`Caja #${caja.id_caja}`} subtitulo={subtitulo} icono="point_of_sale" volver="/finanzas/cajas">
+        {abierta && (
+          <>
+            {puede("caja:escribir") && (
+              <Link to="/finanzas/gastos" className="btn btn-outline-secondary">
+                <Icono nombre="remove_shopping_cart" /> Registrar gasto
+              </Link>
+            )}
+            {puede("caja:modificar") && (
+              <>
+                <Link to={`/finanzas/cajas/${caja.id_caja}/arqueo`} className="btn btn-outline-secondary">
+                  <Icono nombre="fact_check" /> Contar efectivo
+                </Link>
+                <Link to={`/finanzas/cajas/${caja.id_caja}/cierre`} className="btn btn-marca">
+                  <Icono nombre="lock" /> Cerrar caja
+                </Link>
+              </>
+            )}
+          </>
+        )}
+      </Encabezado>
       <Notificar tipo="success" texto={aviso} onListo={() => setAviso("")} />
 
-      <Tarjeta icono="info" titulo="Estado de la caja">
-        {abierta ? (
-          <span className="estado-caja abierta">
-            <Icono nombre="lock_open" /> Caja abierta
-          </span>
-        ) : (
-          <span className="estado-caja cerrada">
-            <Icono nombre="lock" /> Caja cerrada
-          </span>
+      {abierta ? (
+        <ol className="caja-pasos" aria-label="Pasos de la caja">
+          <li className="hecho">
+            <span className="caja-paso-marca" aria-hidden="true">
+              <Icono nombre="check" />
+            </span>
+            <div>
+              <strong>1. Abrir la caja</strong>
+              <span>Con {pesos(caja.saldo_inicial)} en el cajón.</span>
+            </div>
+          </li>
+          <li className="actual" aria-current="step">
+            <span className="caja-paso-marca" aria-hidden="true">
+              2
+            </span>
+            <div>
+              <strong>2. Durante el turno</strong>
+              <span>Los cobros y los gastos se suman solos a esta caja.</span>
+            </div>
+          </li>
+          <li>
+            <span className="caja-paso-marca" aria-hidden="true">
+              3
+            </span>
+            <div>
+              <strong>3. Cerrar la caja</strong>
+              <span>Al terminar, contás el efectivo y se compara con lo que debería haber.</span>
+            </div>
+          </li>
+        </ol>
+      ) : (
+        <ol className="caja-pasos" aria-label="Pasos de la caja">
+          {["Abrir la caja", "Durante el turno", "Cerrar la caja"].map((paso, n) => (
+            <li key={paso} className="hecho">
+              <span className="caja-paso-marca" aria-hidden="true">
+                <Icono nombre="check" />
+              </span>
+              <div>
+                <strong>
+                  {n + 1}. {paso}
+                </strong>
+                <span>{n === 2 ? `Cerrada el ${fechaHora(caja.fecha_cierre)}.` : "Hecho."}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <Tarjeta icono="payments" titulo={abierta ? "Efectivo en el cajón ahora" : "Efectivo en el cajón"}>
+        <CuentaCajon caja={caja} />
+
+        {!abierta && (
+          <div className="resultado-cierre">
+            <div>
+              <span>Debería haber</span>
+              <strong>{pesos(caja.saldo_final)}</strong>
+            </div>
+            <div>
+              <span>Se contó</span>
+              {caja.fecha_arqueo ? <strong>{pesos(caja.saldo_contado)}</strong> : <strong className="text-gris">Sin conteo</strong>}
+            </div>
+            {caja.fecha_arqueo && (
+              <div className={diferencia === 0 ? "cuadra" : diferencia < 0 ? "falta" : "sobra"}>
+                <span>{diferencia === 0 ? "Diferencia" : diferencia < 0 ? "Faltó" : "Sobró"}</span>
+                <strong>{diferencia === 0 ? "Cuadró" : pesos(Math.abs(diferencia))}</strong>
+              </div>
+            )}
+          </div>
+        )}
+
+        {caja.fecha_arqueo && abierta && (
+          <div className={`aviso-conteo ${viejo ? "viejo" : ""}`}>
+            <Icono nombre="fact_check" />
+            <span>
+              Último conteo: {diaHora(caja.fecha_arqueo)}, se contaron <strong>{pesos(caja.saldo_contado)}</strong> (
+              {diferencia < 0 ? `faltaban ${pesos(Math.abs(diferencia))}` : diferencia > 0 ? `sobraban ${pesos(diferencia)}` : "cuadraba"}).
+              {viejo && " Después hubo cobros o gastos: al cerrar se vuelve a contar."}
+            </span>
+          </div>
+        )}
+        {caja.fecha_arqueo && !abierta && viejo && (
+          <p className="aviso-conteo viejo">
+            <Icono nombre="history" />
+            <span>
+              El efectivo se contó el {diaHora(caja.fecha_arqueo)}, cuando debería haber {pesos(caja.saldo_esperado)}. Después hubo más cobros o gastos, por eso no coincide con
+              lo de arriba.
+            </span>
+          </p>
         )}
       </Tarjeta>
 
-      <div className="layout-comanda">
-        <div className="columna-izquierda">
-          <Tarjeta icono="login" titulo="Información de apertura">
-            <CampoFijo etiqueta="Número de caja" valor={`#${caja.id_caja}`} />
-            <CampoFijo etiqueta="Fecha y hora de apertura" valor={fechaHora(caja.fecha_apertura)} />
-            <CampoFijo etiqueta="Responsable de apertura" valor={caja.empleado_apertura || ""} />
-            <CampoFijo etiqueta="Saldo inicial" valor={dinero(caja.saldo_inicial)} />
-            <CampoFijo etiqueta="Observaciones de apertura" largo valor={caja.observaciones_apertura || "Sin observaciones de apertura."} />
-          </Tarjeta>
+      {(caja.observaciones_apertura || caja.observaciones_arqueo || caja.observaciones_cierre) && (
+        <Tarjeta icono="sticky_note_2" titulo="Observaciones">
+          <dl className="caja-datos">
+            {caja.observaciones_apertura && (
+              <div>
+                <dt>Al abrir</dt>
+                <dd>{caja.observaciones_apertura}</dd>
+              </div>
+            )}
+            {caja.observaciones_arqueo && (
+              <div>
+                <dt>Al contar</dt>
+                <dd>{caja.observaciones_arqueo}</dd>
+              </div>
+            )}
+            {caja.observaciones_cierre && (
+              <div>
+                <dt>Al cerrar</dt>
+                <dd>{caja.observaciones_cierre}</dd>
+              </div>
+            )}
+          </dl>
+        </Tarjeta>
+      )}
 
-          <Tarjeta icono="logout" titulo="Información de cierre">
-            <CampoFijo etiqueta="Fecha y hora de cierre" valor={caja.fecha_cierre ? fechaHora(caja.fecha_cierre) : "Pendiente"} />
-            <CampoFijo etiqueta="Responsable de cierre" valor={caja.empleado_cierre || "Pendiente"} />
-            <CampoFijo etiqueta="Saldo final" valor={dinero(caja.saldo_final)} />
-            <CampoFijo etiqueta="Observaciones de cierre" largo valor={caja.observaciones_cierre || "Sin observaciones de cierre."} />
-          </Tarjeta>
-        </div>
-
-        <div className="columna-derecha">
-          <Tarjeta icono="payments" titulo="Resumen de saldos">
-            <ResumenSaldos caja={caja} />
-          </Tarjeta>
-
-          <Tarjeta icono="fact_check" titulo="Información del arqueo">
-            <CampoFijo etiqueta="Fecha y hora del arqueo" valor={caja.fecha_arqueo ? fechaHora(caja.fecha_arqueo) : "Sin arqueo registrado"} />
-            <CampoFijo etiqueta="Responsable del arqueo" valor={caja.empleado_arqueo || "Pendiente"} />
-            <CampoFijo etiqueta="Observaciones de arqueo" largo valor={caja.observaciones_arqueo || "Sin observaciones de arqueo."} />
-          </Tarjeta>
-        </div>
-      </div>
-
-      <Tarjeta icono="receipt_long" titulo="Gastos asociados">
-        {caja.gastos.length ? (
-          <TablaSimple columnas={["Descripción", "Categoría", "Fecha", "Responsable", "Monto"]}>
-            {caja.gastos.map((g) => (
-              <tr key={g.id_gasto}>
-                <td>{g.descripcion_gasto}</td>
-                <td>{g.categoria_nombre}</td>
-                <td>{fechaHora(g.fecha_hora_gasto)}</td>
-                <td>{g.empleado}</td>
-                <td>{dinero(g.monto_gasto)}</td>
-              </tr>
+      <Tarjeta icono="point_of_sale" titulo={`Cobros (${caja.pagos.length})`}>
+        {caja.ventas_por_metodo.length > 0 && (
+          <ul className="caja-por-metodo" aria-label="Total por método de pago">
+            {caja.ventas_por_metodo.map((v) => (
+              <li key={v.metodo}>
+                <span>{v.metodo}</span>
+                <strong>{pesos(v.total)}</strong>
+              </li>
             ))}
-          </TablaSimple>
-        ) : (
-          <Aviso>No hay gastos asociados a esta caja.</Aviso>
+          </ul>
         )}
-      </Tarjeta>
-
-      <Tarjeta icono="point_of_sale" titulo="Ventas asociadas">
         {caja.pagos.length ? (
-          <TablaSimple columnas={["Comanda", "Fecha", "Responsable", "Método de pago", "Monto"]}>
+          <TablaSimple columnas={["Comanda", "Hora", "Cobró", "Método", "Monto"]}>
             {caja.pagos.map((p) => (
               <tr key={p.id_pago}>
                 <td>
                   <Link to={`/comandas/${p.comanda}`}>#{p.comanda}</Link>
                 </td>
-                <td>{fechaHora(p.fecha_hora)}</td>
+                <td>{diaHora(p.fecha_hora)}</td>
                 <td>{p.empleado}</td>
                 <td>{p.metodo}</td>
-                <td>{dinero(p.monto)}</td>
+                <td>{pesos(p.monto)}</td>
               </tr>
             ))}
           </TablaSimple>
         ) : (
-          <Aviso>No hay ventas registradas.</Aviso>
+          <p className="caja-vacio">Todavía no hay cobros en esta caja.</p>
         )}
       </Tarjeta>
 
-      <Tarjeta icono="point_of_sale" titulo="Ventas por método de pago">
-        {caja.ventas_por_metodo.length ? (
-          <TablaSimple columnas={["Método de pago", "Total recaudado"]}>
-            {caja.ventas_por_metodo.map((v) => (
-              <tr key={v.metodo}>
-                <td>{v.metodo}</td>
-                <td>{dinero(v.total)}</td>
+      <Tarjeta icono="receipt_long" titulo={`Gastos (${caja.gastos.length})`}>
+        {caja.gastos.length ? (
+          <TablaSimple columnas={["Descripción", "Categoría", "Hora", "Registró", "Monto"]}>
+            {caja.gastos.map((g) => (
+              <tr key={g.id_gasto}>
+                <td>{g.descripcion_gasto || "—"}</td>
+                <td>{g.categoria_nombre}</td>
+                <td>{diaHora(g.fecha_hora_gasto)}</td>
+                <td>{g.empleado}</td>
+                <td>{pesos(g.monto_gasto)}</td>
               </tr>
             ))}
           </TablaSimple>
         ) : (
-          <Aviso>No hay ventas registradas.</Aviso>
+          <p className="caja-vacio">Todavía no hay gastos en esta caja.</p>
         )}
       </Tarjeta>
-
-      <div className="botones-carrito">
-        <Link to="/finanzas/cajas" className="btn btn-outline-secondary">
-          <Icono nombre="arrow_back" /> Volver al listado
-        </Link>
-        {abierta && puede("caja:modificar") && (
-          <>
-            <Link to={`/finanzas/cajas/${caja.id_caja}/arqueo`} className="btn btn-outline-secondary">
-              <Icono nombre="fact_check" /> Realizar arqueo
-            </Link>
-            <Link to={`/finanzas/cajas/${caja.id_caja}/cierre`} className="btn btn-marca">
-              <Icono nombre="lock" /> Cerrar caja
-            </Link>
-          </>
-        )}
-      </div>
     </div>
   );
 }
 
+// Contar efectivo (arqueo): control a mitad de turno, no cierra la caja
 export function ArqueoCaja() {
   const navegar = useNavigate();
+  const { usuario } = useAuth();
   const { id, datos: caja, cargando, error: errorCarga } = useCaja();
   const [contado, setContado] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [ahora] = useState(() => new Date());
 
   if (cargando && !caja) return <Cargando />;
   if (!caja) return <Alerta>{errorCarga}</Alerta>;
@@ -300,11 +366,11 @@ export function ArqueoCaja() {
   const enviar = async (evento) => {
     evento.preventDefault();
     setError("");
-    if (!montoValido(contado, { permitirCero: true })) return setError("El saldo contado debe ser un número válido y no negativo.");
+    if (!montoValido(contado, { permitirCero: true })) return setError("El efectivo contado debe ser un número válido y no negativo.");
     setEnviando(true);
     try {
       await api.post(`/cajas/${id}/arqueo/`, { saldo_contado: textoMonto(contado), observaciones_arqueo: observaciones.trim() });
-      navegar(`/finanzas/cajas/${id}`, { state: { aviso: "El arqueo se realizó correctamente." } });
+      navegar(`/finanzas/cajas/${id}`, { state: { aviso: "El conteo quedó registrado. La caja sigue abierta." } });
     } catch (e) {
       setError(mensajeDeError(e));
       setEnviando(false);
@@ -313,79 +379,46 @@ export function ArqueoCaja() {
 
   return (
     <div className="vista-caja">
-      <Encabezado titulo={`Arqueo de caja #${caja.id_caja}`} subtitulo="Registrá el dinero contado y verificá las diferencias de caja." icono="fact_check" volver={`/finanzas/cajas/${id}`} />
+      <Encabezado
+        titulo={`Contar efectivo · Caja #${caja.id_caja}`}
+        subtitulo="Arqueo: un control a mitad de turno para ver si el efectivo coincide. No cierra la caja."
+        icono="fact_check"
+        volver={`/finanzas/cajas/${id}`}
+      />
       <Notificar texto={error} onListo={() => setError("")} />
 
       {caja.estado_caja !== "abierto" ? (
-        <Tarjeta icono="lock" titulo="Caja cerrada">
-          <Aviso icono="lock">
-            Esta caja está cerrada y no se puede realizar un nuevo arqueo.
-            <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
-              <Icono nombre="arrow_back" /> Volver al detalle
-            </Link>
-          </Aviso>
-        </Tarjeta>
+        <Alerta>Esta caja está cerrada: ya no se puede contar el efectivo.</Alerta>
       ) : (
-        <form onSubmit={enviar} noValidate>
-          <div className="layout-comanda">
-            <div className="columna-izquierda">
-              <Tarjeta icono="person" titulo="Responsable del arqueo">
-                <Responsable />
-                <CampoFijo etiqueta="Fecha de arqueo" valor={fechaHora(ahora)} />
-                <Aviso>El responsable se obtiene del usuario autenticado.</Aviso>
-              </Tarjeta>
-              <Tarjeta icono="point_of_sale" titulo="Datos de la caja">
-                <CampoFijo etiqueta="Número de caja" valor={`#${caja.id_caja}`} />
-                <CampoFijo etiqueta="Fecha de apertura" valor={fechaHora(caja.fecha_apertura)} />
-                <CampoFijo etiqueta="Responsable de apertura" valor={caja.empleado_apertura || ""} />
-                <CampoFijo etiqueta="Saldo inicial" valor={dinero(caja.saldo_inicial)} />
-              </Tarjeta>
+        <form onSubmit={enviar} noValidate className="caja-formulario">
+          <Tarjeta numero="1" titulo="Lo que debería haber">
+            <CuentaCajon caja={caja} />
+          </Tarjeta>
+          <Tarjeta numero="2" titulo="Contá el efectivo">
+            <ContarEfectivo esperado={caja.saldo_esperado_actual} valor={contado} onCambiar={setContado} />
+            <div className="grupo-campo">
+              <label htmlFor="observaciones_arqueo">Observaciones (opcional)</label>
+              <textarea
+                id="observaciones_arqueo"
+                className="form-control-textarea"
+                rows={3}
+                maxLength={1000}
+                placeholder="Ej: faltan $500 de un vuelto mal dado"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              />
             </div>
-
-            <div className="columna-derecha">
-              <Tarjeta icono="account_balance_wallet" titulo="Resumen de caja">
-                <CampoFijo etiqueta="Saldo inicial" valor={dinero(caja.saldo_inicial)} />
-                <CampoFijo etiqueta="Saldo esperado actual" valor={dinero(caja.saldo_esperado_actual)} />
-                <Aviso icono="calculate">
-                  Saldo esperado = saldo inicial + cobros en efectivo − gastos. Los cobros con tarjeta o transferencia no se cuentan porque no están en el cajón.
-                </Aviso>
-              </Tarjeta>
-
-              <Tarjeta icono="payments" titulo="Registrar conteo">
-                <div className="grupo-campo">
-                  <label htmlFor="saldo_contado">
-                    Saldo contado ($) <span>*</span>
-                  </label>
-                  <div className="select-con-icono">
-                    <Icono nombre="attach_money" />
-                    <input id="saldo_contado" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" required autoFocus value={contado} onChange={(e) => setContado(e.target.value)} />
-                  </div>
-                  <small>Ingresá el total de dinero físico contado en la caja.</small>
-                </div>
-                <div className="grupo-campo">
-                  <label htmlFor="observaciones_arqueo">Observaciones de arqueo</label>
-                  <textarea
-                    id="observaciones_arqueo"
-                    className="form-control-textarea"
-                    rows={4}
-                    maxLength={1000}
-                    placeholder="Detallá diferencias, faltantes o sobrantes..."
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                  />
-                  <small>Máximo 1000 caracteres.</small>
-                </div>
-                <Aviso icono="warning">Revisá el importe antes de confirmar. El arqueo registrará el saldo contado y la diferencia calculada.</Aviso>
-              </Tarjeta>
-            </div>
-          </div>
-
+            <p className="caja-quien">
+              <Icono nombre="person" /> Lo cuenta {usuario?.nombre || usuario?.usuario}
+              {usuario?.cargo ? ` (${usuario.cargo})` : ""}.
+            </p>
+          </Tarjeta>
           <div className="acciones-formulario">
             <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
-              <Icono nombre="close" /> Cancelar
+              Cancelar
             </Link>
             <button type="submit" className="btn btn-marca" disabled={enviando}>
-              <Icono nombre="fact_check" /> {enviando ? "Guardando..." : "Confirmar arqueo"}
+              <Icono nombre="fact_check" /> {enviando ? "Guardando..." : "Guardar conteo"}
             </button>
           </div>
         </form>
@@ -394,10 +427,12 @@ export function ArqueoCaja() {
   );
 }
 
+// Cerrar en un solo paso: se cuenta el efectivo, se ve si falta o sobra y se cierra
 export function CerrarCaja() {
   const navegar = useNavigate();
   const { usuario } = useAuth();
   const { id, datos: caja, cargando, error: errorCarga } = useCaja();
+  const [contado, setContado] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [error, setError] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -405,15 +440,14 @@ export function CerrarCaja() {
   if (cargando && !caja) return <Cargando />;
   if (!caja) return <Alerta>{errorCarga}</Alerta>;
 
-  const abierta = caja.estado_caja === "abierto";
-
   const enviar = async (evento) => {
     evento.preventDefault();
     setError("");
+    if (!montoValido(contado, { permitirCero: true })) return setError("Escribí cuánto efectivo contaste en el cajón.");
     setEnviando(true);
     try {
-      await api.post(`/cajas/${id}/cierre/`, { observaciones_cierre: observaciones.trim() });
-      navegar(`/finanzas/cajas/${id}`, { state: { aviso: "La caja se cerró correctamente." } });
+      await api.post(`/cajas/${id}/cierre/`, { saldo_contado: textoMonto(contado), observaciones_cierre: observaciones.trim() });
+      navegar(`/finanzas/cajas/${id}`, { state: { aviso: `La caja #${id} quedó cerrada.` } });
     } catch (e) {
       setError(mensajeDeError(e));
       setEnviando(false);
@@ -422,69 +456,51 @@ export function CerrarCaja() {
 
   return (
     <div className="vista-caja">
-      <Encabezado titulo={`Cerrar caja #${caja.id_caja}`} subtitulo="Revisá los saldos antes de confirmar el cierre." icono="lock" volver={`/finanzas/cajas/${id}`} />
+      <Encabezado
+        titulo={`Cerrar caja #${caja.id_caja}`}
+        subtitulo="Contá el efectivo del cajón y confirmá. Después de cerrarla no se pueden cobrar ni cargar gastos en ella."
+        icono="lock"
+        volver={`/finanzas/cajas/${id}`}
+      />
       <Notificar texto={error} onListo={() => setError("")} />
 
-      <div className="layout-comanda">
-        <div className="columna-izquierda">
-          <Tarjeta icono="point_of_sale" titulo="Información de la caja">
-            <CampoFijo etiqueta="Número de caja" valor={`#${caja.id_caja}`} />
-            <CampoFijo etiqueta="Fecha de apertura" valor={fechaHora(caja.fecha_apertura)} />
-            <CampoFijo etiqueta="Empleado que abrió la caja" valor={caja.empleado_apertura || ""} />
-            <CampoFijo etiqueta="Estado actual" valor={abierta ? "Abierto" : "Cerrado"} />
-            <CampoFijo etiqueta="Empleado responsable del cierre" valor={usuario?.nombre || usuario?.usuario || ""} />
-            <CampoFijo etiqueta="Cargo" valor={usuario?.cargo || "Sin cargo asignado"} />
+      {caja.estado_caja !== "abierto" ? (
+        <Alerta>Esta caja ya está cerrada.</Alerta>
+      ) : (
+        <form onSubmit={enviar} noValidate className="caja-formulario">
+          <Tarjeta numero="1" titulo="Lo que debería haber">
+            <CuentaCajon caja={caja} />
           </Tarjeta>
-        </div>
-
-        <div className="columna-derecha">
-          <Tarjeta icono="account_balance_wallet" titulo="Resumen de saldos">
-            <ResumenSaldos caja={caja} />
+          <Tarjeta numero="2" titulo="Contá el efectivo">
+            <ContarEfectivo esperado={caja.saldo_esperado_actual} valor={contado} onCambiar={setContado} />
+            <div className="grupo-campo">
+              <label htmlFor="observaciones_cierre">Observaciones (opcional)</label>
+              <textarea
+                id="observaciones_cierre"
+                className="form-control-textarea"
+                rows={3}
+                maxLength={1000}
+                placeholder="Ej: faltan $500 de un vuelto mal dado"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+              />
+              <small>Si falta o sobra plata, anotá el motivo si lo sabés.</small>
+            </div>
+            <p className="caja-quien">
+              <Icono nombre="person" /> La cierra {usuario?.nombre || usuario?.usuario}
+              {usuario?.cargo ? ` (${usuario.cargo})` : ""}.
+            </p>
           </Tarjeta>
-
-          <Tarjeta icono="warning" titulo="Confirmar cierre">
-            <p>Al confirmar, la caja quedará cerrada. Verificá que los importes sean correctos antes de continuar.</p>
-            {!abierta ? (
-              <Aviso>
-                Esta caja ya está cerrada y no puede cerrarse nuevamente.
-                <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
-                  Volver al detalle
-                </Link>
-              </Aviso>
-            ) : !caja.fecha_arqueo ? (
-              <Aviso>
-                Para cerrar esta caja, primero debés realizar el arqueo.
-                <Link to={`/finanzas/cajas/${id}/arqueo`} className="btn btn-marca">
-                  <Icono nombre="calculate" /> Realizar arqueo
-                </Link>
-              </Aviso>
-            ) : (
-              <form onSubmit={enviar}>
-                <div className="grupo-campo">
-                  <label htmlFor="observaciones_cierre">Observaciones del cierre</label>
-                  <textarea
-                    id="observaciones_cierre"
-                    className="form-control-textarea"
-                    rows={4}
-                    maxLength={1000}
-                    placeholder="Ingresá observaciones adicionales sobre el cierre..."
-                    value={observaciones}
-                    onChange={(e) => setObservaciones(e.target.value)}
-                  />
-                </div>
-                <div className="botones-carrito">
-                  <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
-                    Cancelar
-                  </Link>
-                  <button type="submit" className="btn btn-marca" disabled={enviando}>
-                    <Icono nombre="lock" /> {enviando ? "Cerrando..." : "Confirmar cierre"}
-                  </button>
-                </div>
-              </form>
-            )}
-          </Tarjeta>
-        </div>
-      </div>
+          <div className="acciones-formulario">
+            <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
+              Cancelar
+            </Link>
+            <button type="submit" className="btn btn-marca" disabled={enviando}>
+              <Icono nombre="lock" /> {enviando ? "Cerrando..." : "Cerrar caja"}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

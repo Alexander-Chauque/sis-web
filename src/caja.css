@@ -347,3 +347,339 @@
   align-items: center;
   gap: 6px;
 }
+
+/* =========================================
+   Caja más clara: caja actual, pasos, cuenta del cajón y conteo
+   ========================================= */
+.caja-actual {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  border: 1px solid #a7f3d0;
+  border-left: 5px solid #10b981;
+  border-radius: 14px;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+
+.caja-actual--cerrada {
+  border-color: #fde68a;
+  border-left-color: #f5a623;
+}
+
+.caja-actual-icono {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.caja-actual--cerrada .caja-actual-icono {
+  background-color: #fff4de;
+  color: #b45309;
+}
+
+.caja-actual-texto {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.caja-actual-texto strong {
+  font-size: 17px;
+  color: #1f2937;
+}
+
+.caja-actual-texto span,
+.caja-actual-dato span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.caja-actual-dato {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background-color: #fff8e7;
+}
+
+.caja-actual-dato strong {
+  font-size: 20px;
+  color: #b45309;
+  font-variant-numeric: tabular-nums;
+}
+
+.caja-actual-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.caja-actual .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.caja-resultado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.caja-resultado.cuadra { background-color: #d1fae5; color: #065f46; }
+.caja-resultado.falta { background-color: #fee2e2; color: #991b1b; }
+.caja-resultado.sobra { background-color: #fef3c7; color: #92400e; }
+
+/* Los 3 pasos de la caja */
+.vista-caja .caja-pasos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.vista-caja .caja-pasos li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background-color: #fff;
+  color: #6b7280;
+}
+
+.vista-caja .caja-pasos li div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.vista-caja .caja-pasos li strong {
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.vista-caja .caja-paso-marca {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: #f3f4f6;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.vista-caja .caja-paso-marca .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.vista-caja .caja-pasos li.hecho .caja-paso-marca {
+  background-color: #10b981;
+  color: #fff;
+}
+
+.vista-caja .caja-pasos li.actual {
+  border-color: #f5a623;
+  box-shadow: 0 0 0 1px #f5a623 inset;
+}
+
+.vista-caja .caja-pasos li.actual .caja-paso-marca {
+  background-color: #f5a623;
+  color: #1f1a10;
+}
+
+/* La cuenta del cajón: al abrir + cobros − gastos = debería haber */
+.vista-caja .cuenta-cajon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.vista-caja .cuenta-cajon-item {
+  display: flex;
+  flex: 1 1 140px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background-color: #f9fafb;
+}
+
+.vista-caja .cuenta-cajon-etiqueta {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.vista-caja .cuenta-cajon-item strong {
+  font-size: 20px;
+  color: #1f2937;
+  font-variant-numeric: tabular-nums;
+}
+
+.vista-caja .cuenta-cajon-item--suma strong { color: #047857; }
+.vista-caja .cuenta-cajon-item--resta strong { color: #b91c1c; }
+
+.vista-caja .cuenta-cajon-item--total {
+  border-color: #f5a623;
+  background-color: #fff4de;
+}
+
+.vista-caja .cuenta-cajon-item--total strong {
+  font-size: 24px;
+  color: #b45309;
+}
+
+.vista-caja .cuenta-cajon-signo {
+  align-self: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+/* Resultado de una caja cerrada */
+.vista-caja .resultado-cierre {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.vista-caja .resultado-cierre > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background-color: #f9fafb;
+}
+
+.vista-caja .resultado-cierre span { font-size: 12px; color: #6b7280; }
+.vista-caja .resultado-cierre strong { font-size: 20px; color: #1f2937; }
+.vista-caja .resultado-cierre .cuadra { background-color: #ecfdf5; }
+.vista-caja .resultado-cierre .cuadra strong { color: #047857; }
+.vista-caja .resultado-cierre .falta { background-color: #fef2f2; }
+.vista-caja .resultado-cierre .falta strong { color: #b91c1c; }
+.vista-caja .resultado-cierre .sobra { background-color: #fffbeb; }
+.vista-caja .resultado-cierre .sobra strong { color: #92400e; }
+
+.vista-caja .aviso-conteo {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #eff6ff;
+  color: #1e40af;
+  font-size: 13px;
+}
+
+.vista-caja .aviso-conteo.viejo {
+  background-color: #fffbeb;
+  color: #92400e;
+}
+
+.vista-caja .caja-datos {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.vista-caja .caja-datos dt { font-size: 12px; font-weight: 400; color: #6b7280; }
+.vista-caja .caja-datos dd { margin: 2px 0 0; color: #1f2937; white-space: pre-line; }
+
+.vista-caja .caja-por-metodo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.vista-caja .caja-por-metodo li {
+  display: flex;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.vista-caja .caja-por-metodo strong { color: #1f2937; }
+.vista-caja .caja-vacio { margin: 0; color: #6b7280; }
+
+.vista-caja .page-header .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Contar el efectivo: la diferencia aparece mientras se escribe */
+.vista-caja .contar-efectivo input {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.vista-caja .contar-efectivo-diferencia {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.vista-caja .contar-efectivo-diferencia.cuadra { background-color: #ecfdf5; color: #047857; }
+.vista-caja .contar-efectivo-diferencia.falta { background-color: #fef2f2; color: #b91c1c; }
+.vista-caja .contar-efectivo-diferencia.sobra { background-color: #fffbeb; color: #92400e; }
+
+.vista-caja .caja-quien {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.vista-caja .caja-formulario {
+  max-width: 860px;
+}
+
+.vista-caja .paso-numero {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: #f5a623;
+  color: #1f1a10;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .vista-caja .caja-pasos { grid-template-columns: 1fr; }
+  .vista-caja .cuenta-cajon-signo { display: none; }
+}

@@ -11,6 +11,75 @@ import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, fechaHora, fechaISO, montoValido, textoMonto } from "../../utils/formato";
+import "../../caja.css";
+
+const hora = (valor) => new Date(valor).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+
+// Resultado de una caja cerrada: compara lo que debería haber con lo que se contó
+export function ResultadoCaja({ caja }) {
+  if (caja.estado_caja === "abierto") return <span className="text-secondary">En curso</span>;
+  if (!caja.fecha_arqueo) return <span className="text-secondary">Sin conteo</span>;
+  const diferencia = Number(caja.diferencia_caja);
+  if (diferencia === 0) return <span className="caja-resultado cuadra">Cuadró</span>;
+  return (
+    <span className={`caja-resultado ${diferencia < 0 ? "falta" : "sobra"}`}>
+      {diferencia < 0 ? "Faltó" : "Sobró"} {dinero(Math.abs(diferencia))}
+    </span>
+  );
+}
+
+// Tarjeta de arriba: la caja abierta ahora, o cómo abrir una
+function CajaActual({ id, puedeAbrir, puedeCerrar, onAbrir }) {
+  const detalle = useCarga(id ? `/cajas/${id}/` : null);
+  const c = detalle.datos;
+
+  if (!id) {
+    return (
+      <section className="caja-actual caja-actual--cerrada">
+        <span className="caja-actual-icono">
+          <Icono nombre="lock" />
+        </span>
+        <div className="caja-actual-texto">
+          <strong>No hay ninguna caja abierta</strong>
+          <span>Abrila al empezar el turno con el efectivo que hay en el cajón. Sin caja abierta no se puede cobrar ni registrar gastos.</span>
+        </div>
+        {puedeAbrir && (
+          <button type="button" className="btn btn-marca" onClick={onAbrir}>
+            <Icono nombre="lock_open" /> Abrir caja
+          </button>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="caja-actual">
+      <span className="caja-actual-icono">
+        <Icono nombre="point_of_sale" />
+      </span>
+      <div className="caja-actual-texto">
+        <strong>Caja #{id} abierta</strong>
+        <span>{c ? `Desde las ${hora(c.fecha_apertura)} · la abrió ${c.empleado_apertura}` : "Cargando..."}</span>
+      </div>
+      {c && (
+        <div className="caja-actual-dato">
+          <span>Debería haber en el cajón</span>
+          <strong>{dinero(c.saldo_esperado_actual)}</strong>
+        </div>
+      )}
+      <div className="caja-actual-botones">
+        <Link to={`/finanzas/cajas/${id}`} className="btn btn-outline-secondary">
+          <Icono nombre="visibility" /> Ver caja
+        </Link>
+        {puedeCerrar && (
+          <Link to={`/finanzas/cajas/${id}/cierre`} className="btn btn-marca">
+            <Icono nombre="lock" /> Cerrar caja
+          </Link>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export function EstadoCaja({ estado }) {
   return <span className={`badge ${estado === "abierto" ? "text-bg-success" : "text-bg-secondary"}`}>{estado === "abierto" ? "Abierta" : "Cerrada"}</span>;
@@ -38,7 +107,10 @@ function AbrirCaja({ onCerrar, onAbierta }) {
   return (
     <Modal titulo="Abrir caja" onCerrar={onCerrar} onEnviar={abrir} enviando={enviando} textoEnviar="Abrir caja">
       <Alerta>{error}</Alerta>
-      <Campo id="saldo-inicial" etiqueta="Saldo inicial *" prefijo="$" ayuda="El efectivo con el que empieza la caja.">
+      <p className="text-secondary small">
+        Contá los billetes y monedas que hay en el cajón antes de empezar. Ese es el saldo inicial: a partir de ahí, cada cobro en efectivo suma y cada gasto resta.
+      </p>
+      <Campo id="saldo-inicial" etiqueta="¿Con cuánto efectivo empieza el cajón? *" prefijo="$" ayuda="Puede ser $0 si el cajón empieza vacío.">
         <input id="saldo-inicial" className="form-control" inputMode="decimal" required value={saldo} onChange={(e) => setSaldo(e.target.value)} />
       </Campo>
       <Campo id="obs-apertura" etiqueta="Observaciones (opcional)" className="mb-0">
@@ -79,20 +151,21 @@ export default function Cajas() {
 
   return (
     <div className="contenedor-listado">
-      <Encabezado titulo="Cajas" subtitulo="Gestiona las cajas registradas." icono="point_of_sale">
-        {datos?.caja_abierta && (
-          <Link className="btn btn-outline-secondary" to={`/finanzas/cajas/${datos.caja_abierta}`}>
-            <Icono nombre="search" /> Ir a la caja abierta
-          </Link>
-        )}
-        {puede("caja:escribir") && datos && !datos.caja_abierta && (
-          <button type="button" className="btn btn-marca" onClick={() => setAbriendo(true)}>
-            <Icono nombre="add" /> Abrir caja
-          </button>
-        )}
-      </Encabezado>
+      <Encabezado
+        titulo="Cajas"
+        subtitulo="La caja es el efectivo del cajón en un turno: se abre al empezar, junta los cobros y gastos, y se cierra contando la plata."
+        icono="point_of_sale"
+      />
       <Notificar texto={cajas.error} />
-      {datos && !datos.caja_abierta && <Alerta tipo="warning">No hay ninguna caja abierta. Hace falta una para registrar gastos y ventas.</Alerta>}
+      {datos && (
+        <CajaActual
+          key={datos.caja_abierta || "ninguna"}
+          id={datos.caja_abierta}
+          puedeAbrir={puede("caja:escribir")}
+          puedeCerrar={puede("caja:modificar")}
+          onAbrir={() => setAbriendo(true)}
+        />
+      )}
 
       <ListadoLayout
         filtros={
@@ -125,8 +198,9 @@ export default function Cajas() {
                   <th scope="col">#</th>
                   <th scope="col">Fecha de apertura</th>
                   <th scope="col">Empleado responsable</th>
-                  <th scope="col">Saldo inicial</th>
-                  <th scope="col">Saldo esperado</th>
+                  <th scope="col">Al abrir</th>
+                  <th scope="col">Al cerrar</th>
+                  <th scope="col">Resultado del conteo</th>
                   <th scope="col">Estado</th>
                   <th scope="col">Acciones</th>
                 </tr>
@@ -138,7 +212,10 @@ export default function Cajas() {
                     <td className="text-nowrap">{fechaHora(c.fecha_apertura)}</td>
                     <td>{c.empleado_apertura}</td>
                     <td className="text-nowrap">{dinero(c.saldo_inicial)}</td>
-                    <td className="text-nowrap">{c.saldo_esperado ? dinero(c.saldo_esperado) : "—"}</td>
+                    <td className="text-nowrap">{c.estado_caja === "abierto" ? "—" : dinero(c.saldo_final)}</td>
+                    <td className="text-nowrap">
+                      <ResultadoCaja caja={c} />
+                    </td>
                     <td>
                       <EstadoCaja estado={c.estado_caja} />
                     </td>
@@ -146,9 +223,8 @@ export default function Cajas() {
                       <div className="acciones-tabla">
                         <BotonAccion tipo="ver" titulo={`Ver detalle de la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}`} />
                         {c.estado_caja === "abierto" && puede("caja:modificar") && (
-                          // Como en Django: arqueo y cierre, cada uno en su pantalla
                           <>
-                            <BotonAccion tipo="editar" icono="fact_check" titulo={`Arqueo de la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}/arqueo`} />
+                            <BotonAccion tipo="editar" icono="fact_check" titulo={`Contar el efectivo de la caja #${c.id_caja} (arqueo)`} a={`/finanzas/cajas/${c.id_caja}/arqueo`} />
                             <BotonAccion tipo="desactivar" icono="lock" titulo={`Cerrar la caja #${c.id_caja}`} a={`/finanzas/cajas/${c.id_caja}/cierre`} />
                           </>
                         )}
@@ -156,7 +232,7 @@ export default function Cajas() {
                     </td>
                   </tr>
                 ))}
-                {!datos.resultados.length && <Vacio columnas={7}>No hay cajas para mostrar.</Vacio>}
+                {!datos.resultados.length && <Vacio columnas={8}>No hay cajas para mostrar.</Vacio>}
               </tbody>
             </table>
           </div>
@@ -166,7 +242,7 @@ export default function Cajas() {
         )}
       </ListadoLayout>
 
-      {abriendo && <AbrirCaja onCerrar={() => setAbriendo(false)} onAbierta={(c) => navegar(`/finanzas/cajas/${c.id_caja}`)} />}
+      {abriendo && <AbrirCaja onCerrar={() => setAbriendo(false)} onAbierta={(c) => navegar(`/finanzas/cajas/${c.id_caja}`, { state: { aviso: `La caja #${c.id_caja} quedó abierta. Ya se puede cobrar y registrar gastos.` } })} />}
     </div>
   );
 }
