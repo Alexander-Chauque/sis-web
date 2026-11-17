@@ -2594,3 +2594,25 @@ body:has(.cuenta-pagina) .footer {
 .grupo-filtro select {
   min-height: 49px;
 }
+
+/* ---------- Bandeja de notificaciones (bandeja.html de Django) ---------- */
+.badge-activo { background-color: #d1fae5; color: #065f46; }
+
+.badge-alerta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.badge-alerta .material-symbols-outlined {
+  font-size: 15px;
+}
+
+/* Ya leída: el ícono queda apagado, con la fecha de lectura al pasar el mouse */
+.btn-icon.btn-leida {
+  background: none;
+  color: var(--icono-neutro);
+  cursor: default;
+  opacity: 0.5;
+}

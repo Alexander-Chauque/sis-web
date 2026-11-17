@@ -7,30 +7,47 @@ import { avisarCambioNotificaciones } from "../../components/Campana";
 import { Cargando } from "../../components/Cargando";
 import { Encabezado, Vacio } from "../../components/Comunes";
 import { Icono } from "../../components/Icono";
-import { BotonAccion, CabeceraResultados, FiltroBuscar, FiltroLista, ListadoLayout, PaginacionNumeros, PanelFiltros } from "../../components/Listado";
+import { CabeceraResultados, FiltroBuscar, FiltroCasillas, ListadoLayout, PaginacionNumeros, PanelFiltros } from "../../components/Listado";
 import { Notificar } from "../../components/Mensajes";
 import { useCarga } from "../../hooks/useCarga";
 import { useNotificar } from "../../hooks/useNotificar";
 import { api, mensajeDeError } from "../../services/api";
-import { fechaHora } from "../../utils/formato";
+
+// Fecha como en la bandeja de Django: 16/11/2026 20:35
+const fechaCorta = (valor) => {
+  const f = new Date(valor);
+  const dd = String(f.getDate()).padStart(2, "0");
+  const mm = String(f.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${f.getFullYear()} ${f.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+};
 
 // Ícono y color de cada tipo de alerta, como en la bandeja de Django
 const TIPOS = {
-  VENTA_INUSUAL: { icono: "trending_up", color: "text-bg-warning" },
-  COMANDA_DEMORADA: { icono: "timer", color: "text-bg-danger" },
-  CAJA_ABIERTA: { icono: "point_of_sale", color: "text-bg-info" },
+  VENTA_INUSUAL: { icono: "trending_up", color: "badge-entregado" },
+  COMANDA_DEMORADA: { icono: "timer", color: "badge-preparacion" },
+  CAJA_ABIERTA: { icono: "point_of_sale", color: "badge-anulado" },
 };
 const ESTADOS = [
   { valor: "sin_leer", texto: "Sin leer" },
   { valor: "leida", texto: "Leídas" },
 ];
-const FILTROS_VACIOS = { buscar: "", tipo: "", estado: "" };
+// Tipo y estado con casillas, como en Django: sin ninguna marcada se muestran todas
+const FILTROS_VACIOS = { buscar: "", tipos: [], estados: [] };
 
 export default function Notificaciones() {
   // Lo que se marca en el panel y lo que ya se aplicó con "Aplicar"
   const [borrador, setBorrador] = useState(FILTROS_VACIOS);
   const [filtros, setFiltros] = useState({ ...FILTROS_VACIOS, pagina: 1, por_pagina: 10 });
-  const consulta = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v));
+  const consulta = Object.fromEntries(
+    Object.entries({
+      buscar: filtros.buscar,
+      tipo: filtros.tipos.join(","),
+      // "Sin leer" y "Leídas" a la vez equivalen a no filtrar por estado
+      estado: filtros.estados.length === 1 ? filtros.estados[0] : "",
+      pagina: filtros.pagina,
+      por_pagina: filtros.por_pagina,
+    }).filter(([, v]) => v),
+  );
   const bandeja = useCarga("/notificaciones/", consulta);
   const notificar = useNotificar();
   const [error, setError] = useState("");
@@ -71,7 +88,7 @@ export default function Notificaciones() {
   return (
     <div className="contenedor-listado">
       <Encabezado titulo="Notificaciones" subtitulo="Alertas automáticas del sistema para tu perfil." icono="notifications">
-        <button type="button" className="btn btn-marca" disabled={!datos?.sin_leer || ocupado} onClick={marcarTodas}>
+        <button type="button" className="btn btn-marca" disabled={ocupado} onClick={marcarTodas}>
           <Icono nombre="done_all" /> Marcar todas como leídas
         </button>
       </Encabezado>
@@ -92,27 +109,18 @@ export default function Notificaciones() {
               onCambiar={(v) => setBorrador({ ...borrador, buscar: v })}
               placeholder="Texto del mensaje..."
             />
-            <FiltroLista
-              id="filtro-tipo"
+            <FiltroCasillas
               titulo="Tipo"
-              todos="Todos los tipos"
               opciones={(datos?.tipos || []).map((t) => ({ valor: t.valor, texto: t.nombre }))}
-              valor={borrador.tipo}
-              onCambiar={(v) => setBorrador({ ...borrador, tipo: v })}
+              elegidos={borrador.tipos}
+              onCambiar={(v) => setBorrador({ ...borrador, tipos: v })}
             />
-            <FiltroLista
-              id="filtro-estado"
-              titulo="Estado"
-              todos="Todos los estados"
-              opciones={ESTADOS}
-              valor={borrador.estado}
-              onCambiar={(v) => setBorrador({ ...borrador, estado: v })}
-            />
+            <FiltroCasillas titulo="Estado" opciones={ESTADOS} elegidos={borrador.estados} onCambiar={(v) => setBorrador({ ...borrador, estados: v })} />
           </PanelFiltros>
         }
       >
         <CabeceraResultados
-          titulo={datos ? `Bandeja (${datos.sin_leer} sin leer)` : "Bandeja"}
+          titulo="Resultados"
           porPagina={filtros.por_pagina}
           onPorPagina={(n) => setFiltros((f) => ({ ...f, por_pagina: n, pagina: 1 }))}
         />
@@ -123,8 +131,7 @@ export default function Notificaciones() {
             <table className="table table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">Fecha y hora</th>
+                  <th scope="col">Fecha</th>
                   <th scope="col">Tipo</th>
                   <th scope="col">Mensaje</th>
                   <th scope="col">Estado</th>
@@ -132,12 +139,11 @@ export default function Notificaciones() {
                 </tr>
               </thead>
               <tbody className={bandeja.cargando ? "opacity-50" : ""}>
-                {datos.resultados.map((n, i) => {
+                {datos.resultados.map((n) => {
                   const tipo = TIPOS[n.tipo] || { icono: "notifications", color: "text-bg-secondary" };
                   return (
                     <tr key={n.id} className={n.leida ? "" : "fila-nueva"}>
-                      <td className="fw-semibold">{(datos.pagina - 1) * datos.por_pagina + i + 1}</td>
-                      <td className="text-nowrap">{fechaHora(n.fecha)}</td>
+                      <td className="text-nowrap">{fechaCorta(n.fecha)}</td>
                       <td>
                         <span className={`badge badge-alerta ${tipo.color}`}>
                           <Icono nombre={tipo.icono} /> {n.tipo_nombre}
@@ -145,23 +151,25 @@ export default function Notificaciones() {
                       </td>
                       <td>{n.mensaje}</td>
                       <td className="text-nowrap">
-                        {n.leida ? (
-                          <span className="text-secondary" title={n.fecha_lectura ? `Leída el ${fechaHora(n.fecha_lectura)}` : undefined}>
-                            Leída
-                          </span>
-                        ) : (
-                          <span className="badge text-bg-warning">Sin leer</span>
-                        )}
+                        {n.leida ? <span className="badge badge-activo">Leída</span> : <span className="badge badge-pendiente">Nueva</span>}
                       </td>
                       <td>
                         <div className="acciones-tabla">
-                          {!n.leida && <BotonAccion tipo="ver" icono="done" titulo="Marcar como leída" disabled={ocupado} onClick={() => marcarLeida(n)} />}
+                          {!n.leida ? (
+                            <button type="button" className="btn-icon btn-reactivar" title="Marcar como leída" aria-label="Marcar como leída" disabled={ocupado} onClick={() => marcarLeida(n)}>
+                              <Icono nombre="check" />
+                            </button>
+                          ) : (
+                            <span className="btn-icon btn-leida" title={n.fecha_lectura ? `Leída el ${fechaCorta(n.fecha_lectura)}` : "Leída"}>
+                              <Icono nombre="done_all" />
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
                   );
                 })}
-                {!datos.resultados.length && <Vacio columnas={6}>No hay notificaciones con estos filtros.</Vacio>}
+                {!datos.resultados.length && <Vacio columnas={5}>No hay notificaciones para mostrar</Vacio>}
               </tbody>
             </table>
           </div>
