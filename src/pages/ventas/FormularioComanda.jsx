@@ -493,16 +493,9 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  // Con pagos, la web solo permite agregar: se recuerda lo mínimo de cada producto (sumando sus líneas)
-  const minimos = useMemo(() => {
-    if (!comanda?.pagos.length) return {};
-    const suma = {};
-    comanda.items.forEach((i) => {
-      suma[clave(i)] = (suma[clave(i)] || 0) + i.cantidad;
-    });
-    return suma;
-  }, [comanda]);
-  const totalDe = (lista, k) => lista.filter((i) => clave(i) === k).reduce((s, i) => s + i.cantidad, 0);
+  // Con pagos se puede cambiar el pedido (incluso quitar algo cargado por error),
+  // siempre que el total no quede por debajo de lo que ya se pagó
+  const pagado = Number(comanda?.total_pagado || 0);
 
   const visibles = useMemo(() => {
     const texto = normalizar(buscar.trim());
@@ -555,14 +548,18 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
     }
   });
 
-  // ¿Se puede bajar esta línea a esa cantidad sin quedar debajo de lo ya cobrado?
-  const permitido = (item, cantidad) => {
-    const minimo = minimos[clave(item)] || 0;
-    return totalDe(pedido, clave(item)) - item.cantidad + cantidad >= minimo;
-  };
+  // ¿Se puede bajar esta línea a esa cantidad sin que el total quede debajo de lo ya pagado?
+  const totalCon = (item, cantidad) => total - Number(item.precio) * item.cantidad + Number(item.precio) * cantidad;
+  const permitido = (item, cantidad) => !pagado || totalCon(item, cantidad) >= pagado - 0.005;
 
   const cambiarCantidad = (item, cantidad) => {
-    if (!permitido(item, Math.max(cantidad, 0))) return;
+    if (!permitido(item, Math.max(cantidad, 0))) {
+      setError(
+        `No se puede: el total quedaría en ${dinero(totalCon(item, Math.max(cantidad, 0)))} y ya se pagaron ${dinero(pagado)}. Lo pagado no se puede devolver desde acá.`,
+      );
+      return;
+    }
+    setError("");
     if (cantidad < 1) {
       setPedido((actual) => actual.filter((i) => i.linea !== item.linea));
       return;
@@ -627,9 +624,9 @@ function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano 
       <Notificar texto={error || mesas.error || mozos.error} onListo={() => setError("")} />
       {/* Al volver del comprobante después de cobrar una mesa */}
       <Notificar tipo="success" texto={avisoCobro} />
-      {!!Object.keys(minimos).length && (
+      {pagado > 0 && (
         <Alerta tipo="warning">
-          Ya se pagaron {dinero(comanda.total_pagado)} de esta comanda. Podés agregar productos o subir cantidades, pero no quitar ni bajar lo que ya estaba, porque parte ya está cobrado.
+          Ya se pagaron {dinero(comanda.total_pagado)} de esta comanda. Podés cambiar el pedido y quitar lo que se cargó por error, mientras el total no quede por debajo de lo ya pagado.
         </Alerta>
       )}
 
