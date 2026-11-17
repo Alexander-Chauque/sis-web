@@ -21,7 +21,10 @@ export const MENU = [
     descripcion: "Gestión de mesas y pedidos",
     resumen: "Control de mesas y comandas",
     opciones: [
-      { a: "/mesas", texto: "Mesas", icono: "table_restaurant", permiso: "mesas:leer", pie: { titulo: "Mesas", descripcion: "Gestión de mesas" } }],
+      { a: "/mesas", texto: "Mesas", icono: "table_restaurant", permiso: "mesas:leer", pie: { titulo: "Mesas", descripcion: "Gestión de mesas" } },
+      // Como en Django: cada estación ve lo que tiene que preparar
+      { a: "/estaciones", texto: "Cocina, bar y parrilla", icono: "soup_kitchen", permiso: "comandas:leer", pie: { titulo: "Cocina, bar y parrilla", descripcion: "Pedidos para preparar" } },
+    ],
   },
 
   {

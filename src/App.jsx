@@ -26,6 +26,7 @@ import Comandas from "./pages/ventas/Comandas";
 import DetalleComanda from "./pages/ventas/DetalleComanda";
 import FormularioComanda from "./pages/ventas/FormularioComanda";
 import { Comprobante, Tickets } from "./pages/ventas/Impresiones";
+import Estaciones from "./pages/ventas/Estaciones";
 import Mesas from "./pages/ventas/Mesas";
 
 const Reportes = lazy(() => import("./pages/reportes/Reportes"));
@@ -40,6 +41,7 @@ const PANTALLAS = [
   { ruta: "categorias", permiso: "categorias:leer", Pantalla: Catalogo, props: { config: CATALOGOS.categoriasPlato } },
   { ruta: "tipos-bebida", permiso: "bebidas:leer", Pantalla: Catalogo, props: { config: CATALOGOS.tiposBebida } },
   { ruta: "mesas", permiso: "mesas:leer", Pantalla: Mesas },
+  { ruta: "estaciones/:clave", permiso: "comandas:leer", Pantalla: Estaciones },
   { ruta: "comandas", permiso: "comandas:leer", Pantalla: Comandas },
   { ruta: "comandas/nueva", permiso: "comandas:escribir", Pantalla: FormularioComanda },
   { ruta: "comandas/:id", permiso: "comandas:leer", Pantalla: DetalleComanda },
@@ -82,6 +84,7 @@ export default function App() {
           <Route path="cuenta/permisos" element={<MisPermisos />} />
           {/* Parcial Nº 2 (M3): cada usuario ve las notificaciones dirigidas a su cargo */}
           <Route path="notificaciones" element={<Notificaciones />} />
+          <Route path="estaciones" element={<Navigate to="/estaciones/cocina" replace />} />
           {/* Parcial Nº 2 (M2): los consolidados ahora son pestañas de Reportes, como en Django */}
           <Route path="reportes/consolidados" element={<Navigate to="/reportes?tab=rentabilidad" replace />} />
           {PANTALLAS.map(({ ruta, permiso, Pantalla, props }) => (

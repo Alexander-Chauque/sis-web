@@ -2616,3 +2616,43 @@ body:has(.cuenta-pagina) .footer {
   cursor: default;
   opacity: 0.5;
 }
+
+/* =========================================
+   PANTALLA POR ESTACIÓN (Cocina, Bar, Parrilla), igual a Django
+   ========================================= */
+.estaciones-pestanas { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.estacion-pestana {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 10px 20px;
+  border: 1px solid #e5e7eb; border-radius: 999px; background-color: #fff;
+  color: #1f2937; font-weight: 600; text-decoration: none;
+}
+.estacion-pestana:hover { border-color: var(--acento); color: #1f2937; }
+.estacion-pestana.activa { border-color: var(--acento); background-color: var(--acento); color: #1f1a10; }
+.estacion-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-items: start; }
+.estacion-pedido {
+  display: flex; flex-direction: column; gap: 12px; padding: 16px;
+  border: 1px solid #e5e7eb; border-top: 5px solid var(--acento); border-radius: 12px;
+  background-color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.estacion-pedido--demorada { border-top-color: #dc2626; }
+.estacion-pedido header { display: flex; justify-content: space-between; gap: 8px; }
+.estacion-pedido header strong { display: block; font-size: 20px; color: #1f2937; }
+.estacion-pedido header span { font-size: 12px; color: #6b7280; }
+.estacion-espera {
+  align-self: flex-start; padding: 2px 10px; border-radius: 999px; background-color: #f3f4f6;
+  font-weight: 700; font-size: 13px !important; color: #1f2937 !important; white-space: nowrap;
+}
+.estacion-pedido--demorada .estacion-espera { background-color: #dc2626; color: #fff !important; }
+.estacion-pedido ul { margin: 0; padding: 0; list-style: none; }
+.estacion-pedido li { display: flex; gap: 12px; padding: 6px 0; border-top: 1px solid #f1f2f4; font-size: 16px; color: #1f2937; }
+.estacion-cantidad { min-width: 28px; font-size: 18px; font-weight: 700; color: var(--acento-texto); }
+.estacion-nota { display: block; font-size: 13px; font-style: normal; font-weight: 600; color: #dc2626; }
+.estacion-observaciones { margin: 0; padding: 8px 12px; border-radius: 8px; background-color: #fef3c7; color: #92400e; font-size: 13px; }
+.estacion-listo { display: inline-flex; align-items: center; gap: 6px; width: 100%; justify-content: center; min-height: 48px; font-size: 16px; }
+.estacion-vacia {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px;
+  border: 1px dashed #d1d5db; border-radius: 12px; color: #6b7280; text-align: center; background: #fff;
+}
+.estacion-vacia .material-symbols-outlined { font-size: 40px; color: #22c55e; }
+.estacion-vacia strong { color: #1f2937; }
+.estacion-vacia p { margin: 0; }
