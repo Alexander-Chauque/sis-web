@@ -16,6 +16,16 @@ const pesos = (valor) => `$${Math.round(Number(valor) || 0).toLocaleString("es-A
 const horaCorta = (valor) => new Date(valor).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
 
 // Fecha y hora que se actualizan solas
+const MAXIMO_AVISOS = 4;
+const ICONO_AVISO = { COMANDA_DEMORADA: "timer", CAJA_ABIERTA: "point_of_sale" };
+
+// "d/m H:i" como el inicio de Django
+function diaYHora(valor) {
+  const d = new Date(valor);
+  const dos = (n) => String(n).padStart(2, "0");
+  return `${dos(d.getDate())}/${dos(d.getMonth() + 1)} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}
+
 function useAhora() {
   const [ahora, setAhora] = useState(() => new Date());
   useEffect(() => {
@@ -84,6 +94,8 @@ export default function Panel() {
   const mesas = useCarga(verMesas ? "/mesas/" : null);
   const comandas = useCarga(verComandas ? "/comandas/" : null, { abiertas: "1" });
   const cajas = useCarga(verCaja ? "/cajas/" : null, { estado: "abierto" });
+  // Avisos: las notificaciones sin leer del cargo, como en el inicio de Django
+  const avisos = useCarga("/notificaciones/", { estado: "sin_leer", por_pagina: MAXIMO_AVISOS });
   const ahora = useAhora();
 
   const nombre = usuario?.nombre?.split(" ")[0] || usuario?.usuario;
@@ -146,9 +158,15 @@ export default function Panel() {
             <Indicador
               a="/finanzas/cajas"
               icono="point_of_sale"
-              nombre="Caja"
-              valor={cajaAbierta ? "Abierta" : "Cerrada"}
-              detalle={cajaAbierta ? `Desde las ${horaCorta(cajaAbierta.fecha_apertura)}` : "Sin caja abierta"}
+              nombre={Number(resumen.ventas_hoy) > 0 ? "Ventas de hoy" : "Caja"}
+              valor={Number(resumen.ventas_hoy) > 0 ? pesos(resumen.ventas_hoy) : cajaAbierta ? "Abierta" : "Cerrada"}
+              detalle={
+                Number(resumen.ventas_hoy) > 0
+                  ? `${resumen.cobros_hoy} ${resumen.cobros_hoy === 1 ? "cobro" : "cobros"} · caja ${cajaAbierta ? "abierta" : "cerrada"}`
+                  : cajaAbierta
+                    ? `Desde las ${horaCorta(cajaAbierta.fecha_apertura)} · sin ventas hoy`
+                    : "Sin ventas hoy"
+              }
             />
           )}
         </section>
@@ -251,6 +269,34 @@ export default function Panel() {
               )}
             </section>
           )}
+
+          <section className="inicio-panel" aria-labelledby="titulo-avisos">
+            <CabeceraPanel
+              id="titulo-avisos"
+              titulo="Avisos"
+              texto={avisos.datos?.sin_leer ? `${avisos.datos.sin_leer} sin leer` : "Notificaciones sin leer"}
+              a="/notificaciones"
+              enlace="Ver todos"
+            />
+            {!avisos.datos ? (
+              <Cargando />
+            ) : avisos.datos.resultados.length ? (
+              <ul className="inicio-avisos">
+                {avisos.datos.resultados.map((aviso) => (
+                  <li key={aviso.id}>
+                    <Icono nombre={ICONO_AVISO[aviso.tipo] || "trending_up"} className="inicio-aviso-icono" />
+                    <div>
+                      <strong>{aviso.tipo_nombre}</strong>
+                      <p>{aviso.mensaje.length > 110 ? `${aviso.mensaje.slice(0, 109)}…` : aviso.mensaje}</p>
+                      <span className="inicio-secundario">{diaYHora(aviso.fecha)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Vacio icono="notifications" titulo="No hay avisos sin leer" />
+            )}
+          </section>
         </div>
       </div>
     </div>
