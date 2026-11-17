@@ -22,8 +22,8 @@ export const MENU = [
     resumen: "Control de mesas y comandas",
     opciones: [
       { a: "/mesas", texto: "Mesas", icono: "table_restaurant", permiso: "mesas:leer", pie: { titulo: "Mesas", descripcion: "Gestión de mesas" } },
-      // Como en Django: cada estación ve lo que tiene que preparar
-      { a: "/estaciones", texto: "Cocina, bar y parrilla", icono: "soup_kitchen", permiso: "comandas:leer", pie: { titulo: "Cocina, bar y parrilla", descripcion: "Pedidos para preparar" } },
+      // "Cocina, bar y parrilla" (/estaciones) queda fuera del menú: los cargos de cocina no tienen
+      // acceso al sistema y reciben el pedido por el ticket impreso. La pantalla sigue en el código.
     ],
   },
 
