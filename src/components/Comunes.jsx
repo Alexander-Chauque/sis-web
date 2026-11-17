@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 
 import { ESTADOS_COMANDA } from "../utils/formato";
@@ -217,10 +218,12 @@ export function Modal({
 
   const enviar = (evento) => {
     evento.preventDefault();
+    // La ventana va al final de la página, pero React lleva el envío a la pantalla de abajo: que no siga
+    evento.stopPropagation();
     onEnviar?.();
   };
 
-  return (
+  return createPortal(
     <>
       <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="titulo-modal">
         <div className={`modal-dialog modal-dialog-centered modal-dialog-scrollable ${grande ? "modal-lg" : ""}`}>
@@ -255,6 +258,7 @@ export function Modal({
         </div>
       </div>
       <div className="modal-backdrop show" />
-    </>
+    </>,
+    document.body,
   );
 }

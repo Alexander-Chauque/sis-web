@@ -1,5 +1,5 @@
 // Pantallas de la cuenta (Mi perfil, Cambiar contraseña, Mis permisos):
-// tarjeta centrada y el paisaje de cardones abajo.
+// tarjeta centrada, sin imágenes de fondo.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -22,10 +22,6 @@ function PaginaCuenta({ icono, titulo, subtitulo, children }) {
         </div>
       </header>
       <section className="cuenta-tarjeta">{children}</section>
-      <div className="cuenta-paisaje" aria-hidden="true">
-        <img className="paisaje-claro" src="/img/paisaje_claro.webp" alt="" />
-        <img className="paisaje-oscuro" src="/img/paisaje_oscuro.webp" alt="" />
-      </div>
     </div>
   );
 }

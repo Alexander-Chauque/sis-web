@@ -2,6 +2,7 @@
 import Chart from "chart.js/auto";
 import html2canvas from "html2canvas";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Encabezado } from "../../components/Comunes";
@@ -9,6 +10,7 @@ import { Icono } from "../../components/Icono";
 import { Notificar } from "../../components/Mensajes";
 import { useCarga } from "../../hooks/useCarga";
 import { dinero, fecha, fechaISO, primeroDelMes } from "../../utils/formato";
+import { ReporteConsolidado } from "./Consolidados";
 
 const PESTANIAS = [
   { clave: "ventas", nombre: "Ventas", icono: "trending_up" },
@@ -132,7 +134,12 @@ const OPCIONES_TOP = {
 export default function Reportes() {
   const [borrador, setBorrador] = useState({ fecha_desde: primeroDelMes(), fecha_hasta: fechaISO() });
   const [rango, setRango] = useState(borrador);
-  const [pestania, setPestania] = useState("ventas");
+  // ?tab=rentabilidad abre directamente esa pestaña (el menú viejo de Consolidados llega así)
+  const [parametros] = useSearchParams();
+  const [pestania, setPestania] = useState(parametros.get("tab") || "ventas");
+  // Parcial Nº 2: los reportes consolidados son pestañas más, solo los que el perfil puede ver
+  const consolidados = useCarga("/reportes/consolidados/").datos || [];
+  const esConsolidado = consolidados.some((c) => c.clave === pestania);
   const [exportando, setExportando] = useState(false);
   const [error, setError] = useState("");
   const reporte = useCarga("/reportes/", rango);
@@ -171,7 +178,7 @@ export default function Reportes() {
       <Notificar texto={error || reporte.error} onListo={() => setError("")} />
 
       <div className="tabs-reportes no-imprimir" role="tablist" aria-label="Reportes">
-        {PESTANIAS.map((p) => (
+        {[...PESTANIAS, ...consolidados].map((p) => (
           <button
             key={p.clave}
             type="button"
@@ -185,172 +192,189 @@ export default function Reportes() {
         ))}
       </div>
 
-      <div className="filtros-reportes no-imprimir">
-        <form className="filtros-reportes-fechas" onSubmit={filtrar}>
-          <div className="grupo-filtro">
-            <label htmlFor="r-desde">Desde</label>
-            <input id="r-desde" type="date" max={fechaISO()} value={borrador.fecha_desde} onChange={(e) => setBorrador({ ...borrador, fecha_desde: e.target.value })} />
+      {esConsolidado && (
+        <ReporteConsolidado
+          key={pestania}
+          clave={pestania}
+          icono={consolidados.find((c) => c.clave === pestania)?.icono}
+          rango={rango}
+          onRango={(nuevo) => {
+            setRango(nuevo);
+            setBorrador(nuevo);
+          }}
+        />
+      )}
+
+      {!esConsolidado && (
+        <>
+          <div className="filtros-reportes no-imprimir">
+            <form className="filtros-reportes-fechas" onSubmit={filtrar}>
+              <div className="grupo-filtro">
+                <label htmlFor="r-desde">Desde</label>
+                <input id="r-desde" type="date" max={fechaISO()} value={borrador.fecha_desde} onChange={(e) => setBorrador({ ...borrador, fecha_desde: e.target.value })} />
+              </div>
+              <div className="grupo-filtro">
+                <label htmlFor="r-hasta">Hasta</label>
+                <input id="r-hasta" type="date" max={fechaISO()} value={borrador.fecha_hasta} onChange={(e) => setBorrador({ ...borrador, fecha_hasta: e.target.value })} />
+              </div>
+              <button type="submit" className="btn btn-marca">
+                <Icono nombre="filter_alt" /> Filtrar
+              </button>
+            </form>
+            <div className="acciones-descarga">
+              <button type="button" className="btn btn-outline-secondary" title="Descargar como imagen" disabled={!r || exportando} onClick={descargarImagen}>
+                <Icono nombre="image" /> {exportando ? "Generando..." : "Imagen"}
+              </button>
+              <button type="button" className="btn btn-outline-secondary" title="Guardar como PDF" disabled={!r} onClick={() => window.print()}>
+                <Icono nombre="picture_as_pdf" /> PDF
+              </button>
+            </div>
           </div>
-          <div className="grupo-filtro">
-            <label htmlFor="r-hasta">Hasta</label>
-            <input id="r-hasta" type="date" max={fechaISO()} value={borrador.fecha_hasta} onChange={(e) => setBorrador({ ...borrador, fecha_hasta: e.target.value })} />
-          </div>
-          <button type="submit" className="btn btn-marca">
-            <Icono nombre="filter_alt" /> Filtrar
-          </button>
-        </form>
-        <div className="acciones-descarga">
-          <button type="button" className="btn btn-outline-secondary" title="Descargar como imagen" disabled={!r || exportando} onClick={descargarImagen}>
-            <Icono nombre="image" /> {exportando ? "Generando..." : "Imagen"}
-          </button>
-          <button type="button" className="btn btn-outline-secondary" title="Guardar como PDF" disabled={!r} onClick={() => window.print()}>
-            <Icono nombre="picture_as_pdf" /> PDF
-          </button>
-        </div>
-      </div>
 
-      <div className="area-reporte" ref={area}>
-        {!r ? (
-          reporte.cargando && <Cargando />
-        ) : (
-          <div className={reporte.cargando ? "opacity-50" : ""}>
-            {/* Encabezado que solo se ve al imprimir */}
-            <p className="solo-impresion titulo-impresion">
-              Los Cardones · Reporte de {PESTANIAS.find((p) => p.clave === pestania).nombre} · {fecha(r.fecha_desde)} al {fecha(r.fecha_hasta)}
-            </p>
+          <div className="area-reporte" ref={area}>
+            {!r ? (
+              reporte.cargando && <Cargando />
+            ) : (
+              <div className={reporte.cargando ? "opacity-50" : ""}>
+                {/* Encabezado que solo se ve al imprimir */}
+                <p className="solo-impresion titulo-impresion">
+                  Los Cardones · Reporte de {PESTANIAS.find((p) => p.clave === pestania).nombre} · {fecha(r.fecha_desde)} al {fecha(r.fecha_hasta)}
+                </p>
 
-            {pestania === "ventas" && (
-              <>
-                <div className="grid-resumen-reportes">
-                  <div className="tarjeta-reporte">
-                    <div className="icono-reporte bg-verde">
-                      <Icono nombre="payments" />
+                {pestania === "ventas" && (
+                  <>
+                    <div className="grid-resumen-reportes">
+                      <div className="tarjeta-reporte">
+                        <div className="icono-reporte bg-verde">
+                          <Icono nombre="payments" />
+                        </div>
+                        <div className="info-reporte">
+                          <span>Ventas Totales</span>
+                          <strong>{pesos(r.ventas_totales)}</strong>
+                        </div>
+                      </div>
+                      <div className="tarjeta-reporte">
+                        <div className="icono-reporte bg-azul">
+                          <Icono nombre="receipt_long" />
+                        </div>
+                        <div className="info-reporte">
+                          <span>Comandas</span>
+                          <strong>{r.cantidad_comandas}</strong>
+                        </div>
+                      </div>
+                      <div className="tarjeta-reporte">
+                        <div className="icono-reporte bg-naranja">
+                          <Icono nombre="point_of_sale" />
+                        </div>
+                        <div className="info-reporte">
+                          <span>Ticket Promedio</span>
+                          <strong>{pesos(r.ticket_promedio)}</strong>
+                        </div>
+                      </div>
                     </div>
-                    <div className="info-reporte">
-                      <span>Ventas Totales</span>
-                      <strong>{pesos(r.ventas_totales)}</strong>
-                    </div>
-                  </div>
-                  <div className="tarjeta-reporte">
-                    <div className="icono-reporte bg-azul">
-                      <Icono nombre="receipt_long" />
-                    </div>
-                    <div className="info-reporte">
-                      <span>Comandas</span>
-                      <strong>{r.cantidad_comandas}</strong>
-                    </div>
-                  </div>
-                  <div className="tarjeta-reporte">
-                    <div className="icono-reporte bg-naranja">
-                      <Icono nombre="point_of_sale" />
-                    </div>
-                    <div className="info-reporte">
-                      <span>Ticket Promedio</span>
-                      <strong>{pesos(r.ticket_promedio)}</strong>
-                    </div>
-                  </div>
-                </div>
-                <TarjetaGrafico icono="trending_up" titulo={`Evolución de Ventas (Período ${r.fecha_desde} al ${r.fecha_hasta})`}>
-                  <Grafico tipo="line" etiquetas={r.por_dia.map((d) => diaYMes(d.fecha))} valores={r.por_dia.map((d) => Number(d.total))} />
-                </TarjetaGrafico>
-              </>
-            )}
+                    <TarjetaGrafico icono="trending_up" titulo={`Evolución de Ventas (Período ${r.fecha_desde} al ${r.fecha_hasta})`}>
+                      <Grafico tipo="line" etiquetas={r.por_dia.map((d) => diaYMes(d.fecha))} valores={r.por_dia.map((d) => Number(d.total))} />
+                    </TarjetaGrafico>
+                  </>
+                )}
 
-            {pestania === "top" && (
-              <div className="grid-top-productos">
-                <TablaTop
-                  icono="restaurant"
-                  titulo="Top 5 Platos"
-                  columnas={[{ texto: "#", numero: true }, { texto: "Plato" }, { texto: "Vendidos", derecha: true, fuerte: true }]}
-                  filas={r.top_platos.map((p, n) => [n + 1, p.nombre, p.cantidad])}
-                >
-                  {!!r.top_platos.length && (
-                    <Grafico
-                      tipo="bar"
-                      alto={260}
-                      serie="Vendidos"
-                      etiquetas={r.top_platos.map((p) => p.nombre)}
-                      valores={r.top_platos.map((p) => p.cantidad)}
-                      opciones={OPCIONES_TOP}
+                {pestania === "top" && (
+                  <div className="grid-top-productos">
+                    <TablaTop
+                      icono="restaurant"
+                      titulo="Top 5 Platos"
+                      columnas={[{ texto: "#", numero: true }, { texto: "Plato" }, { texto: "Vendidos", derecha: true, fuerte: true }]}
+                      filas={r.top_platos.map((p, n) => [n + 1, p.nombre, p.cantidad])}
+                    >
+                      {!!r.top_platos.length && (
+                        <Grafico
+                          tipo="bar"
+                          alto={260}
+                          serie="Vendidos"
+                          etiquetas={r.top_platos.map((p) => p.nombre)}
+                          valores={r.top_platos.map((p) => p.cantidad)}
+                          opciones={OPCIONES_TOP}
+                        />
+                      )}
+                    </TablaTop>
+                    <TablaTop
+                      icono="local_drink"
+                      titulo="Top 5 Bebidas"
+                      columnas={[{ texto: "#", numero: true }, { texto: "Bebida" }, { texto: "Vendidos", derecha: true, fuerte: true }]}
+                      filas={r.top_bebidas.map((b, n) => [n + 1, b.nombre, b.cantidad])}
+                    >
+                      {!!r.top_bebidas.length && (
+                        <Grafico
+                          tipo="bar"
+                          alto={260}
+                          serie="Vendidas"
+                          etiquetas={r.top_bebidas.map((b) => b.nombre)}
+                          valores={r.top_bebidas.map((b) => b.cantidad)}
+                          opciones={OPCIONES_TOP}
+                        />
+                      )}
+                    </TablaTop>
+                  </div>
+                )}
+
+                {pestania === "categorias" && (
+                  <TablaTop
+                    icono="category"
+                    titulo="Ingresos por Categoría"
+                    columnas={[{ texto: "Categoría" }, { texto: "Ingresos ($)", derecha: true, fuerte: true }]}
+                    filas={r.categorias.map((c) => [c.nombre, pesos(c.ingresos)])}
+                    vacio="Sin datos"
+                  />
+                )}
+
+                {pestania === "mozos" && (
+                  <>
+                    <TarjetaGrafico icono="bar_chart" titulo="Ventas Totales por Mozo ($)">
+                      {r.mozos.length ? (
+                        <Grafico tipo="bar" etiquetas={r.mozos.map((m) => m.nombre)} valores={r.mozos.map((m) => Number(m.total))} opciones={OPCIONES_PESOS} />
+                      ) : (
+                        <p className="sin-datos">No hay ventas registradas en este período.</p>
+                      )}
+                    </TarjetaGrafico>
+                    <TablaTop
+                      icono="groups"
+                      titulo="Detalle de Rendimiento"
+                      columnas={[
+                        { texto: "#", numero: true },
+                        { texto: "Empleado" },
+                        { texto: "Comandas atendidas", derecha: true },
+                        { texto: "Total vendido", derecha: true, fuerte: true },
+                      ]}
+                      filas={r.mozos.map((m, n) => [n + 1, m.nombre, m.cantidad, pesos(m.total)])}
+                      vacio="No hay ventas registradas en este período."
                     />
-                  )}
-                </TablaTop>
-                <TablaTop
-                  icono="local_drink"
-                  titulo="Top 5 Bebidas"
-                  columnas={[{ texto: "#", numero: true }, { texto: "Bebida" }, { texto: "Vendidos", derecha: true, fuerte: true }]}
-                  filas={r.top_bebidas.map((b, n) => [n + 1, b.nombre, b.cantidad])}
-                >
-                  {!!r.top_bebidas.length && (
-                    <Grafico
-                      tipo="bar"
-                      alto={260}
-                      serie="Vendidas"
-                      etiquetas={r.top_bebidas.map((b) => b.nombre)}
-                      valores={r.top_bebidas.map((b) => b.cantidad)}
-                      opciones={OPCIONES_TOP}
-                    />
-                  )}
-                </TablaTop>
+                  </>
+                )}
+
+                {pestania === "metodos" && (
+                  <TarjetaGrafico icono="payments" titulo="Métodos de Pago" className="grafico-angosto">
+                    {r.metodos.length ? (
+                      <Grafico tipo="doughnut" alto={300} etiquetas={r.metodos.map((m) => m.nombre)} valores={r.metodos.map((m) => Number(m.total))} />
+                    ) : (
+                      <p className="sin-datos">No hay pagos registrados en este período.</p>
+                    )}
+                    {!!r.metodos.length && (
+                      <ul className="leyenda-metodos">
+                        {r.metodos.map((m) => (
+                          <li key={m.nombre}>
+                            <span>{m.nombre}</span>
+                            <strong>{dinero(m.total)}</strong>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </TarjetaGrafico>
+                )}
               </div>
             )}
-
-            {pestania === "categorias" && (
-              <TablaTop
-                icono="category"
-                titulo="Ingresos por Categoría"
-                columnas={[{ texto: "Categoría" }, { texto: "Ingresos ($)", derecha: true, fuerte: true }]}
-                filas={r.categorias.map((c) => [c.nombre, pesos(c.ingresos)])}
-                vacio="Sin datos"
-              />
-            )}
-
-            {pestania === "mozos" && (
-              <>
-                <TarjetaGrafico icono="bar_chart" titulo="Ventas Totales por Mozo ($)">
-                  {r.mozos.length ? (
-                    <Grafico tipo="bar" etiquetas={r.mozos.map((m) => m.nombre)} valores={r.mozos.map((m) => Number(m.total))} opciones={OPCIONES_PESOS} />
-                  ) : (
-                    <p className="sin-datos">No hay ventas registradas en este período.</p>
-                  )}
-                </TarjetaGrafico>
-                <TablaTop
-                  icono="groups"
-                  titulo="Detalle de Rendimiento"
-                  columnas={[
-                    { texto: "#", numero: true },
-                    { texto: "Empleado" },
-                    { texto: "Comandas atendidas", derecha: true },
-                    { texto: "Total vendido", derecha: true, fuerte: true },
-                  ]}
-                  filas={r.mozos.map((m, n) => [n + 1, m.nombre, m.cantidad, pesos(m.total)])}
-                  vacio="No hay ventas registradas en este período."
-                />
-              </>
-            )}
-
-            {pestania === "metodos" && (
-              <TarjetaGrafico icono="payments" titulo="Métodos de Pago" className="grafico-angosto">
-                {r.metodos.length ? (
-                  <Grafico tipo="doughnut" alto={300} etiquetas={r.metodos.map((m) => m.nombre)} valores={r.metodos.map((m) => Number(m.total))} />
-                ) : (
-                  <p className="sin-datos">No hay pagos registrados en este período.</p>
-                )}
-                {!!r.metodos.length && (
-                  <ul className="leyenda-metodos">
-                    {r.metodos.map((m) => (
-                      <li key={m.nombre}>
-                        <span>{m.nombre}</span>
-                        <strong>{dinero(m.total)}</strong>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </TarjetaGrafico>
-            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

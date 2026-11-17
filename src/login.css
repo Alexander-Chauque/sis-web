@@ -1,0 +1,383 @@
+/* Inicio de sesión: copia de static/css/login.css de Django, solo dentro de .vista-login */
+
+/* =========================================
+   1. RESET Y PANTALLA COMPLETA
+   ========================================= */
+.vista-login, .vista-login * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+.vista-login {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background-color: #14100C;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* =========================================
+   2. CONTENEDOR: FOTO DE LA PEÑA DE FONDO
+   El degradado oscurece la izquierda para que
+   el logo se lea bien sobre la foto.
+   ========================================= */
+.vista-login .login-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 6vw;
+  gap: 40px;
+  background-image:
+    linear-gradient(90deg, rgba(20, 16, 12, 0.85) 0%, rgba(20, 16, 12, 0.55) 50%, rgba(20, 16, 12, 0.35) 100%),
+    url('/img/fondo-local.jpeg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* =========================================
+   3. LADO IZQUIERDO: LOGO Y FRASES
+   ========================================= */
+.vista-login .login-marca {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: entrar-izquierda 0.7s ease backwards;
+}
+.vista-login .logo-marca {
+  width: 100%;
+  max-width: 440px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
+.vista-login .slogan {
+  font-family: 'Oswald', sans-serif;
+  color: #F5A623;
+  font-size: 18px;
+  letter-spacing: 4px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+.vista-login .marca-frase {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  color: #FFE3B0;
+  font-size: 20px;
+  margin-top: 8px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.vista-login .login-direccion {
+  position: absolute;
+  left: 24px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #D9D4CC;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.vista-login .login-direccion .material-symbols-outlined {
+  font-size: 18px;
+  color: #F5A623;
+}
+
+/* =========================================
+   4. LADO DERECHO: TARJETA BLANCA
+   ========================================= */
+.vista-login .login-formulario {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+.vista-login .tarjeta-login {
+  width: 100%;
+  max-width: 480px;
+  background-color: #FFFFFF;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  animation: entrar-abajo 0.6s ease 0.15s backwards;
+}
+
+/* Franja de color de arriba de la tarjeta */
+.vista-login .tarjeta-aviso {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: #F5A623;
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 14px 24px;
+}
+.vista-login .tarjeta-aviso .material-symbols-outlined {
+  font-size: 20px;
+}
+.vista-login .form-contenido {
+  padding: 36px 40px 32px;
+}
+.vista-login h1 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 34px;
+  color: #2D3748;
+  margin-bottom: 8px;
+}
+.vista-login .subtitulo {
+  color: #718096;
+  font-size: 15px;
+  margin-bottom: 15px;
+}
+.vista-login .linea-naranja {
+  width: 60px;
+  height: 4px;
+  background-color: #F5A623;
+  margin-bottom: 26px;
+  border-radius: 2px;
+}
+
+/* Animaciones de entrada */
+@keyframes entrar-izquierda {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes entrar-abajo {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {.vista-login .login-marca, .vista-login .tarjeta-login { animation: none; }
+
+}
+
+/* =========================================
+   5. INPUTS Y BOTONES
+   ========================================= */
+.vista-login .grupo-campo {
+  margin-bottom: 20px;
+}
+.vista-login .grupo-campo label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4A5568;
+  margin-bottom: 8px;
+}
+.vista-login .input-con-icono {
+  display: flex;
+  align-items: center;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  background-color: #FFFFFF;
+  padding: 0 15px;
+  transition: border-color 0.3s;
+}
+.vista-login .input-con-icono:focus-within {
+  border-color: #F5A623;
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.1);
+}
+.vista-login .input-con-icono .material-symbols-outlined {
+  color: #A0AEC0;
+  font-size: 20px;
+}
+.vista-login .input-con-icono input {
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 15px 10px;
+  font-size: 15px;
+  color: #2D3748;
+  background: transparent;
+}
+.vista-login .toggle-password {
+  cursor: pointer;
+}
+.vista-login .toggle-password:hover {
+  color: #F5A623;
+}
+
+/* RECORDAR Y OLVIDÉ */
+.vista-login .opciones-extra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  font-size: 14px;
+}
+.vista-login .recordar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4A5568;
+  cursor: pointer;
+}
+.vista-login .recordar input {
+  accent-color: #F5A623;
+  cursor: pointer;
+}
+.vista-login .olvide {
+  color: #F5A623;
+  text-decoration: none;
+  font-weight: 600;
+}
+.vista-login .olvide:hover {
+  text-decoration: underline;
+}
+
+/* BOTÓN INICIAR SESIÓN */
+.vista-login .btn-login {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #F5A623;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+.vista-login .btn-login:hover {
+  background-color: #E0951A;
+  transform: translateY(-2px);
+}
+
+/* MENSAJE DE AYUDA */
+.vista-login .ayuda-admin {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 30px;
+  padding: 15px;
+  background-color: #FFF8E7;
+  border-radius: 8px;
+  border: 1px solid #FEEBC8;
+}
+.vista-login .ayuda-admin .material-symbols-outlined {
+  color: #F5A623;
+  font-size: 20px;
+}
+.vista-login .ayuda-admin p {
+  font-size: 13px;
+  color: #92400E;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* =========================================
+   6. ALERTA DE ERROR
+   ========================================= */
+.vista-login .alerta {
+  padding: 12px 15px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 4px solid;
+  animation: alerta-entrar 0.25s ease-out;
+}
+.vista-login .alerta-texto { flex: 1; }
+.vista-login .alerta-cerrar {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  opacity: 0.6;
+}
+.vista-login .alerta-cerrar:hover { opacity: 1; }
+.vista-login .alerta-cerrar .material-symbols-outlined { font-size: 18px; }
+
+/* Errores: datos incorrectos, cuenta desactivada */
+.vista-login .alerta-error, .vista-login .alerta-danger { background-color: #FEE2E2; color: #991B1B; border-color: #DC2626; }
+.vista-login .alerta-warning { background-color: #FEF3C7; color: #92400E; border-color: #F59E0B; }
+.vista-login .alerta-success { background-color: #D1FAE5; color: #065F46; border-color: #10B981; }
+.vista-login .alerta-info, .vista-login .alerta-debug { background-color: #E0F2FE; color: #075985; border-color: #0EA5E9; }
+
+/* Al fallar, la tarjeta se sacude un poco para llamar la atención */
+@keyframes alerta-entrar {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+@media (prefers-reduced-motion: reduce) {.vista-login .alerta { animation: none; }
+
+}
+
+/* =========================================
+   7. RESPONSIVO (Celulares)
+   ========================================= */
+@media (max-width: 900px) {.vista-login .login-container {
+    flex-direction: column;
+    justify-content: center;
+    padding: 30px 16px 60px;
+    gap: 24px;
+  }
+.vista-login .logo-marca { max-width: 260px; }
+.vista-login .slogan { font-size: 14px; }
+.vista-login .marca-frase { font-size: 16px; }
+.vista-login .form-contenido { padding: 28px 22px 24px; }
+.vista-login h1 { font-size: 28px; }
+.vista-login .opciones-extra {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+}
+
+
+/* ---------- Piezas propias de la web (no están en el login de Django) ---------- */
+/* El ojito es un botón (en Django es un ícono suelto): sin el estilo del navegador */
+.vista-login .toggle-password {
+  display: flex;
+  border: none;
+  background: none;
+  color: #A0AEC0;
+}
+
+.vista-login .toggle-password:hover .material-symbols-outlined {
+  color: #F5A623;
+}
+
+.vista-login .btn-login:disabled {
+  opacity: 0.75;
+  cursor: wait;
+  transform: none;
+}
+
+/* Contraseña temporal: ayuda y botón Volver */
+.vista-login .ayuda-clave {
+  margin: -12px 0 20px;
+  color: #718096;
+  font-size: 12px;
+}
+
+.vista-login .btn-volver-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  background: none;
+  color: #4A5568;
+  font-family: 'Oswald', sans-serif;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.vista-login .btn-volver-login:hover {
+  border-color: #F5A623;
+  color: #F5A623;
+}

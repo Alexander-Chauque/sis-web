@@ -1,18 +1,80 @@
 // Tomar un pedido nuevo o cambiar los productos de una comanda abierta
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
 import { Alerta, Encabezado } from "../../components/Comunes";
 import { Notificar } from "../../components/Mensajes";
+import { Cobro } from "./Cobro";
 import { Icono } from "../../components/Icono";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
 import { api, mensajeDeError } from "../../services/api";
 import { dinero, normalizar } from "../../utils/formato";
+import { ELEMENTOS, MESAS, PILARES, PROPORCION, posicion, ZONAS } from "./planoSalon";
 
 const MAXIMO = 999;
 const clave = (item) => `${item.tipo}-${item.id}`;
+
+// Notas rápidas por tipo de producto; las opuestas se reemplazan entre sí
+const NOTAS = {
+  plato: ["sin sal", "sin cebolla", "bien cocido", "jugoso", "sin picante"],
+  bebida: ["sin hielo", "con hielo", "natural", "con limón"],
+};
+const OPUESTAS = { "sin hielo": "con hielo", "con hielo": "sin hielo", "bien cocido": "jugoso", jugoso: "bien cocido" };
+const partesNota = (texto) =>
+  texto
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+const tieneNota = (texto, nota) => partesNota(texto).some((p) => p.toLowerCase() === nota);
+
+function alternarNota(texto, nota) {
+  let lista = partesNota(texto);
+  if (tieneNota(texto, nota)) {
+    lista = lista.filter((p) => p.toLowerCase() !== nota);
+  } else {
+    const opuesta = OPUESTAS[nota];
+    if (opuesta) lista = lista.filter((p) => p.toLowerCase() !== opuesta);
+    lista.push(nota);
+  }
+  return lista.join(", ").slice(0, 120);
+}
+
+// Cada línea del carrito tiene su propia clave: el mismo producto puede ir en dos líneas con notas distintas
+let siguienteLinea = 1;
+const nuevaLinea = (datos) => ({ ...datos, linea: siguienteLinea++ });
+
+const iniciales = (nombre = "") =>
+  nombre
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+
+// Mozos: un botón por mozo, se elige con un toque
+function ElegirMozo({ mozos, elegido, onElegir }) {
+  if (!mozos) return <Cargando />;
+  return (
+    <fieldset className="elegir-mozo">
+      <legend className="form-label">Mozo</legend>
+      <div className="mozos-opciones">
+        {mozos.map((m) => (
+          <label key={m.id} className="mozo-opcion" title={m.cargo}>
+            <input type="radio" name="mozo" value={m.id} checked={String(m.id) === String(elegido)} onChange={() => onElegir(String(m.id))} />
+            <span className="mozo-iniciales" aria-hidden="true">
+              {iniciales(m.nombre)}
+            </span>
+            {m.nombre}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 const PESTANAS = [
   { valor: "todos", texto: "Todos" },
   { valor: "plato", texto: "Platos", icono: "restaurant" },
@@ -22,8 +84,15 @@ const PESTANAS = [
 export default function FormularioComanda() {
   const { id } = useParams();
   const productos = useCarga("/comandas/productos/");
-  const mesas = useCarga(id ? null : "/mesas/");
+  const mesas = useCarga("/mesas/");
   const comanda = useCarga(id ? `/comandas/${id}/` : null);
+  const mozos = useCarga("/comandas/mozos/");
+  // Comandas abiertas: para el panel de las mesas con pedido, la espera y "Tus mesas"
+  const abiertas = useCarga("/comandas/", { abiertas: "1" });
+  const recargarPlano = () => {
+    mesas.recargar();
+    abiertas.recargar();
+  };
 
   if (productos.cargando || comanda.cargando) return <Cargando />;
   const error = productos.error || comanda.error;
@@ -32,15 +101,21 @@ export default function FormularioComanda() {
     return <Alerta tipo="warning">La comanda #{id} está cerrada: no se puede editar.</Alerta>;
   }
   // El editor se crea recién con los datos cargados: así arranca con lo que ya tenía la comanda
-  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} />;
+  return <Editor id={id} productos={productos.datos} mesas={mesas} comanda={comanda.datos} mozos={mozos} abiertas={abiertas.datos} onCambioPlano={recargarPlano} />;
 }
 
 // Tarjeta con título e ícono, como las de la pantalla de comandas de Django
-function Tarjeta({ icono, titulo, extra, children, className = "" }) {
+function Tarjeta({ icono, paso, titulo, extra, children, className = "" }) {
   return (
     <section className={`tarjeta-comanda ${className}`}>
       <div className="tarjeta-comanda-titulo">
-        <Icono nombre={icono} />
+        {paso ? (
+          <span className="paso-numero" aria-hidden="true">
+            {paso}
+          </span>
+        ) : (
+          <Icono nombre={icono} />
+        )}
         <h2>{titulo}</h2>
         {extra && <span className="tarjeta-comanda-extra">{extra}</span>}
       </div>
@@ -49,18 +124,367 @@ function Tarjeta({ icono, titulo, extra, children, className = "" }) {
   );
 }
 
-function Editor({ id, productos, mesas, comanda }) {
+// Estado de cada mesa del plano según la API
+function estadoDeMesa(mesa) {
+  if (!mesa) return "sin-cargar";
+  if (mesa.comanda_abierta) return "ocupada";
+  return mesa.estado_mesa ? "libre" : "sin-pedido";
+}
+
+// Minutos desde que se tomó el pedido, como en Django: 25', 3h o 2d
+const MINUTOS_DEMORA = 30;
+const minutosDesde = (fecha, ahora) => Math.max(0, Math.floor((ahora - new Date(fecha).getTime()) / 60000));
+const textoEspera = (m) => (m < 60 ? `${m}'` : m < 1440 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}d`);
+const textoEsperaLargo = (m) => (m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} días`);
+// Se demora lo que todavía no se entregó
+const estaDemorada = (c, m) => ["pendiente", "en_preparacion"].includes(c.estado_comanda) && m >= MINUTOS_DEMORA;
+const horaDe = (fecha) => new Date(fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+// Reloj que avanza cada minuto, para la espera de las mesas
+function useMinuto() {
+  const [ahora, setAhora] = useState(() => Date.now());
+  useEffect(() => {
+    const reloj = setInterval(() => setAhora(Date.now()), 60000);
+    return () => clearInterval(reloj);
+  }, []);
+  return ahora;
+}
+
+// Panel de una mesa con pedido: agregar productos, cobrar o ver la comanda
+function PanelMesa({ lugar, comanda: original, ahora, onCerrar, onCobrar }) {
+  const { puede } = useAuth();
+  const boton = useRef(null);
+  // Al marcarla como entregada se actualiza acá mismo y aparece Cobrar
+  const [comanda, setComanda] = useState(original);
+  const [entregando, setEntregando] = useState(false);
+  const [error, setError] = useState("");
+  const entregar = async () => {
+    setEntregando(true);
+    try {
+      const { data } = await api.post(`/comandas/${comanda.id_comanda}/estado/`, { estado: "entregado" });
+      setComanda({ ...comanda, estado_comanda: data.estado_comanda, estado_nombre: data.estado_nombre });
+    } catch (e) {
+      setError(mensajeDeError(e));
+    } finally {
+      setEntregando(false);
+    }
+  };
+  const entregada = comanda.estado_comanda === "entregado";
+  const cerrar = useRef(onCerrar);
+  useEffect(() => {
+    cerrar.current = onCerrar;
+  });
+  useEffect(() => {
+    boton.current?.focus();
+    const alPresionar = (e) => e.key === "Escape" && cerrar.current();
+    document.addEventListener("keydown", alPresionar);
+    return () => document.removeEventListener("keydown", alPresionar);
+  }, []);
+  const minutos = minutosDesde(comanda.fecha_hora, ahora);
+  const puedeModificar = puede("comandas:modificar");
+  const saldo = Number(comanda.saldo_pendiente ?? comanda.total_comanda);
+
+  return createPortal(
+    <>
+      <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="panel-mesa-titulo" onClick={(e) => e.target === e.currentTarget && onCerrar()}>
+        <div className="modal-dialog modal-dialog-centered panel-mesa">
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="modal-icono panel-mesa-icono" aria-hidden="true">
+                <Icono nombre="table_restaurant" />
+              </div>
+              <div className="modal-titulos">
+                <h2 className="modal-title" id="panel-mesa-titulo">
+                  Mesa {lugar.numero}
+                </h2>
+                <p className="modal-subtitulo">
+                  {lugar.mesa.ubicacion_nombre} · Comanda #{comanda.id_comanda}
+                </p>
+              </div>
+              <button type="button" className="btn-cerrar-modal" aria-label="Cerrar" onClick={onCerrar}>
+                <Icono nombre="close" />
+              </button>
+            </div>
+            <div className="modal-body">
+              <dl className="panel-mesa-datos">
+                <div>
+                  <dt>Mozo</dt>
+                  <dd>{comanda.mozo}</dd>
+                </div>
+                <div>
+                  <dt>Desde</dt>
+                  <dd>{horaDe(comanda.fecha_hora)} h</dd>
+                </div>
+                <div>
+                  <dt>Estado</dt>
+                  <dd>{comanda.estado_nombre}</dd>
+                </div>
+                <div>
+                  <dt>Esperando</dt>
+                  <dd className={estaDemorada(comanda, minutos) ? "panel-mesa-demorada" : ""}>{textoEsperaLargo(minutos)}</dd>
+                </div>
+                <div>
+                  <dt>Total</dt>
+                  <dd>{dinero(comanda.total_comanda)}</dd>
+                </div>
+                <div>
+                  <dt>Falta pagar</dt>
+                  <dd className="panel-mesa-saldo">{dinero(saldo)}</dd>
+                </div>
+              </dl>
+              <div className="panel-mesa-acciones">
+                {puedeModificar && (
+                  <Link ref={boton} to={`/comandas/${comanda.id_comanda}/editar`} className="btn btn-marca panel-mesa-boton">
+                    <Icono nombre="add_shopping_cart" /> Agregar productos
+                  </Link>
+                )}
+                {/* Solo se cobra lo que ya se entregó en la mesa */}
+                {puedeModificar && saldo > 0 && entregada && (
+                  <button type="button" className="btn btn-outline-secondary panel-mesa-boton" onClick={() => onCobrar(comanda)}>
+                    <Icono nombre="payments" /> Cobrar
+                  </button>
+                )}
+                {puedeModificar && !entregada && (
+                  <button type="button" className="btn btn-outline-secondary panel-mesa-boton" disabled={entregando} onClick={entregar}>
+                    <Icono nombre="room_service" /> {entregando ? "Guardando..." : "Marcar como entregada"}
+                  </button>
+                )}
+                {error && <p className="panel-mesa-error">{error}</p>}
+                <Link to={`/comandas/${comanda.id_comanda}`} className="panel-mesa-ver">
+                  Ver la comanda completa
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>,
+    document.body,
+  );
+}
+
+// Plano del local: una mesa libre se elige con un toque; una con pedido abre su panel
+function PlanoMesas({ mesas, abiertas, elegida, onElegir, onCambio, comandaEditada }) {
+  const { usuario } = useAuth();
+  const [cobrando, setCobrando] = useState(null); // comanda con el modal de pago abierto
+  const ahora = useMinuto();
+  const [panel, setPanel] = useState(null); // número de la mesa con el panel abierto
+  if (!mesas) return <Cargando />;
+  const porNumero = new Map(mesas.map((m) => [m.numero_mesa, m]));
+  const comandaDe = new Map((abiertas || []).map((c) => [c.id_comanda, c]));
+  const enPlano = new Set(MESAS.map((m) => m.numero));
+  const fuera = mesas.filter((m) => !enPlano.has(m.numero_mesa) && ["libre", "sin-pedido"].includes(estadoDeMesa(m)));
+  const lugares = MESAS.map((lugar) => {
+    const mesa = porNumero.get(lugar.numero);
+    // Al editar, la mesa de esta comanda cuenta como libre: se puede dejar o cambiar por otra
+    const propia = comandaEditada && mesa?.comanda_abierta === comandaEditada;
+    return {
+      ...lugar,
+      mesa,
+      estado: propia ? "libre" : estadoDeMesa(mesa),
+      comanda: mesa?.comanda_abierta && !propia ? comandaDe.get(mesa.comanda_abierta) : null,
+    };
+  });
+  const cuantas = (estado) => lugares.filter((l) => l.estado === estado).length;
+  const demoradas = lugares.filter((l) => l.comanda && estaDemorada(l.comanda, minutosDesde(l.comanda.fecha_hora, ahora))).length;
+  const actual = mesas.find((m) => String(m.id_mesa) === String(elegida));
+  // Las mesas abiertas del mozo que usa el sistema, de la más antigua a la más nueva
+  const misMesas = lugares
+    .filter((l) => !comandaEditada && l.comanda && usuario?.id_empleado && l.comanda.mozo_id === usuario.id_empleado)
+    .sort((a, b) => new Date(a.comanda.fecha_hora) - new Date(b.comanda.fecha_hora));
+  const lugarPanel = lugares.find((l) => l.numero === panel && l.comanda);
+
+  const boton = (mesa, texto, estado, extra = {}) => {
+    const esElegida = String(mesa.id_mesa) === String(elegida);
+    return (
+      <button
+        key={mesa.id_mesa}
+        type="button"
+        className={`plano-mesa plano-mesa--${estado} ${esElegida ? "plano-mesa--elegida" : ""}`}
+        aria-pressed={esElegida}
+        title={`Mesa ${mesa.numero_mesa}${estado === "sin-pedido" ? " · Ocupada sin pedido" : " · Libre"}`}
+        onClick={() => onElegir(String(mesa.id_mesa))}
+        {...extra}
+      >
+        {texto}
+      </button>
+    );
+  };
+
+  return (
+    <div className="plano-elegir">
+      {misMesas.length > 0 && (
+        <div className="mis-mesas" aria-label="Tus mesas abiertas">
+          <span className="mis-mesas-titulo">Tus mesas</span>
+          {misMesas.map((l) => {
+            const minutos = minutosDesde(l.comanda.fecha_hora, ahora);
+            return (
+              <button
+                key={l.numero}
+                type="button"
+                className={`mis-mesas-boton ${estaDemorada(l.comanda, minutos) ? "mis-mesas-boton--demorada" : ""}`}
+                onClick={() => setPanel(l.numero)}
+              >
+                <strong>Mesa {l.numero}</strong>
+                <span>
+                  {pesosCortos(l.comanda.total_comanda)} · {textoEspera(minutos)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="plano-cabecera">
+        <p className="plano-elegida" aria-live="polite">
+          {actual ? (
+            <>
+              Mesa elegida: <strong>Mesa {actual.numero_mesa} · {actual.ubicacion_nombre}</strong>
+            </>
+          ) : (
+            "Tocá una mesa libre del plano."
+          )}
+        </p>
+        <ul className="plano-leyenda">
+          <li>
+            <span className="plano-muestra plano-muestra--libre" /> Libre ({cuantas("libre")})
+          </li>
+          <li>
+            <span className="plano-muestra plano-muestra--ocupada" /> Con pedido ({cuantas("ocupada")}){!comandaEditada && ": agregar o cobrar"}
+          </li>
+          {cuantas("sin-pedido") > 0 && (
+            <li>
+              <span className="plano-muestra plano-muestra--sin-pedido" /> Ocupada sin pedido ({cuantas("sin-pedido")})
+            </li>
+          )}
+          <li>
+            <span className="plano-muestra plano-muestra--elegida" /> Elegida
+          </li>
+          {!comandaEditada && (
+            <li>
+              <span className="plano-muestra plano-muestra--demorada" /> Demorada: más de {MINUTOS_DEMORA} min sin entregar
+              {demoradas > 0 && ` (${demoradas})`}
+            </li>
+          )}
+        </ul>
+      </div>
+
+      <div className="plano-desplazable">
+        <div className="plano" style={{ aspectRatio: PROPORCION }}>
+          {ZONAS.map((z) => (
+            <div key={z.nombre} className={`plano-zona ${z.clase}`} style={posicion(z.x, z.y, z.ancho, z.alto)}>
+              <span className="plano-zona-nombre">{z.nombre}</span>
+            </div>
+          ))}
+          {ELEMENTOS.map((e) => (
+            <div key={e.nombre} className={`plano-elemento ${e.clase}`} style={posicion(e.x, e.y, e.ancho, e.alto)} aria-hidden="true">
+              <span>{e.nombre}</span>
+            </div>
+          ))}
+          {PILARES.map((pos, i) => (
+            <div key={i} className="plano-pilar" style={pos} aria-hidden="true" />
+          ))}
+          {lugares.map((l) => {
+            const texto = (
+              <>
+                <strong>{l.numero}</strong>
+                <small>{l.capacidad} p.</small>
+              </>
+            );
+            if (l.estado === "libre" || l.estado === "sin-pedido") {
+              return boton(l.mesa, texto, l.estado, { style: l.pos, "aria-label": `Mesa ${l.numero}, ${l.capacidad} lugares` });
+            }
+            if (l.estado === "ocupada" && comandaEditada) {
+              return (
+                <div key={l.numero} className="plano-mesa plano-mesa--ocupada plano-mesa--bloqueada" style={l.pos} title={`Mesa ${l.numero} · Con pedido de otra comanda`}>
+                  {texto}
+                </div>
+              );
+            }
+            if (l.estado === "ocupada") {
+              const minutos = l.comanda ? minutosDesde(l.comanda.fecha_hora, ahora) : 0;
+              const demorada = l.comanda && estaDemorada(l.comanda, minutos);
+              return (
+                <button
+                  key={l.numero}
+                  type="button"
+                  className={`plano-mesa plano-mesa--ocupada ${demorada ? "plano-mesa--demorada" : ""}`}
+                  style={l.pos}
+                  title={`Mesa ${l.numero} · Con pedido · Comanda #${l.mesa.comanda_abierta}`}
+                  aria-label={`Mesa ${l.numero}, con pedido: ver opciones`}
+                  disabled={!l.comanda}
+                  onClick={() => setPanel(l.numero)}
+                >
+                  {texto}
+                  {l.comanda && (
+                    <span className="plano-espera" aria-label={`Esperando ${minutos} minutos`}>
+                      {textoEspera(minutos)}
+                    </span>
+                  )}
+                </button>
+              );
+            }
+            return (
+              <div key={l.numero} className="plano-mesa plano-mesa--sin-cargar" style={l.pos} title={`Mesa ${l.numero} · No está cargada`}>
+                {texto}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {fuera.length > 0 && (
+        <div className="plano-fuera">
+          <span>Fuera del plano:</span>
+          {fuera.map((m) => boton(m, `Mesa ${m.numero_mesa}`, estadoDeMesa(m)))}
+        </div>
+      )}
+
+      {lugarPanel && (
+        <PanelMesa
+          lugar={lugarPanel}
+          comanda={lugarPanel.comanda}
+          ahora={ahora}
+          onCerrar={() => {
+            setPanel(null);
+            onCambio(); // por si la marcó como entregada
+          }}
+          onCobrar={(comanda) => {
+            setPanel(null);
+            setCobrando(comanda);
+          }}
+        />
+      )}
+      {/* Cobrar ahí mismo, sin ir al detalle de la comanda (como en Django) */}
+      {cobrando && (
+        <Cobro
+          comanda={cobrando}
+          onCerrar={() => setCobrando(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+const pesosCortos = (valor) => `$${Math.round(Number(valor) || 0).toLocaleString("es-AR")}`;
+
+function Editor({ id, productos, mesas, comanda, mozos, abiertas, onCambioPlano }) {
   const esEdicion = !!id;
   const { usuario } = useAuth();
   const [parametros] = useSearchParams();
   const navegar = useNavigate();
+  const avisoCobro = useLocation().state?.aviso;
 
-  const [mesa, setMesa] = useState(parametros.get("mesa") || "");
-  const [buscarMesa, setBuscarMesa] = useState("");
+  const [mesa, setMesa] = useState(esEdicion ? String(comanda.mesa) : parametros.get("mesa") || "");
+  // Por defecto, el que está usando el sistema (o el mozo que ya tenía la comanda)
+  const [mozo, setMozo] = useState(String((esEdicion ? comanda.mozo_id : usuario?.id_empleado) ?? ""));
   const [observaciones, setObservaciones] = useState(comanda?.observaciones_comanda || "");
-  // [{tipo, id, nombre, precio, cantidad}]
+  // [{linea, tipo, id, nombre, precio, cantidad, nota}]
   const [pedido, setPedido] = useState(() =>
-    (comanda?.items || []).map(({ tipo: t, id: i, nombre, precio, cantidad }) => ({ tipo: t, id: i, nombre, precio, cantidad })),
+    (comanda?.items || []).map(({ tipo: t, id: i, nombre, precio, cantidad, observacion }) =>
+      nuevaLinea({ tipo: t, id: i, nombre, precio, cantidad, nota: observacion || "" }),
+    ),
   );
   const [buscar, setBuscar] = useState("");
   const [tipo, setTipo] = useState("todos");
@@ -69,11 +493,16 @@ function Editor({ id, productos, mesas, comanda }) {
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  // Con pagos, la web solo permite agregar: se recuerda lo mínimo de cada producto
+  // Con pagos, la web solo permite agregar: se recuerda lo mínimo de cada producto (sumando sus líneas)
   const minimos = useMemo(() => {
     if (!comanda?.pagos.length) return {};
-    return Object.fromEntries(comanda.items.map((i) => [clave(i), i.cantidad]));
+    const suma = {};
+    comanda.items.forEach((i) => {
+      suma[clave(i)] = (suma[clave(i)] || 0) + i.cantidad;
+    });
+    return suma;
   }, [comanda]);
+  const totalDe = (lista, k) => lista.filter((i) => clave(i) === k).reduce((s, i) => s + i.cantidad, 0);
 
   const visibles = useMemo(() => {
     const texto = normalizar(buscar.trim());
@@ -92,37 +521,66 @@ function Editor({ id, productos, mesas, comanda }) {
     return [...nombres].sort((a, b) => a.localeCompare(b));
   }, [productos, tipo]);
 
-  // Mesas libres agrupadas por ubicación (Salón, Patio), filtradas por el número buscado
-  const gruposMesas = useMemo(() => {
-    const libres = (mesas.datos || []).filter((m) => m.estado_mesa && !m.comanda_abierta && String(m.numero_mesa).includes(buscarMesa.trim()));
-    const grupos = new Map();
-    libres.forEach((m) => {
-      const nombre = m.ubicacion_nombre || "Sin ubicación";
-      if (!grupos.has(nombre)) grupos.set(nombre, []);
-      grupos.get(nombre).push(m);
-    });
-    return [...grupos.entries()];
-  }, [mesas.datos, buscarMesa]);
-  const mesaElegida = (mesas.datos || []).find((m) => String(m.id_mesa) === String(mesa));
-
   const total = pedido.reduce((suma, i) => suma + Number(i.precio) * i.cantidad, 0);
 
-  const agregar = (producto) =>
+  // Producto con la ventana de notas abierta, y el último sumado (para marcarlo un instante)
+  const [notasDe, setNotasDe] = useState(null);
+  const [recien, setRecien] = useState(null);
+  const marca = useRef(null);
+  useEffect(() => () => clearTimeout(marca.current), []);
+
+  // Suma uno a la línea del producto que no tiene nota; si no hay, abre una línea nueva
+  const agregar = (producto) => {
+    setRecien(clave(producto));
+    clearTimeout(marca.current);
+    marca.current = setTimeout(() => setRecien(null), 400);
+    sumarUno(producto);
+  };
+  const sumarUno = (producto) =>
     setPedido((actual) => {
-      const existe = actual.find((i) => clave(i) === clave(producto));
+      const existe = actual.find((i) => clave(i) === clave(producto) && !i.nota);
       if (existe) return actual.map((i) => (i === existe ? { ...i, cantidad: Math.min(MAXIMO, i.cantidad + 1) } : i));
-      return [...actual, { tipo: producto.tipo, id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: 1 }];
+      return [...actual, nuevaLinea({ tipo: producto.tipo, id: producto.id, nombre: producto.nombre, precio: producto.precio, cantidad: 1, nota: "" })];
     });
 
-  const cambiarCantidad = (item, cantidad) => {
+  // El resumen muestra una fila por producto, sumando sus líneas
+  const grupos = [];
+  pedido.forEach((i) => {
+    const grupo = grupos.find((g) => g.k === clave(i));
+    if (grupo) {
+      grupo.cantidad += i.cantidad;
+      grupo.ultima = i;
+    } else {
+      grupos.push({ k: clave(i), item: i, cantidad: i.cantidad, ultima: i });
+    }
+  });
+
+  // ¿Se puede bajar esta línea a esa cantidad sin quedar debajo de lo ya cobrado?
+  const permitido = (item, cantidad) => {
     const minimo = minimos[clave(item)] || 0;
-    if (cantidad < Math.max(minimo, 1)) {
-      if (minimo) return;
-      setPedido((actual) => actual.filter((i) => clave(i) !== clave(item)));
+    return totalDe(pedido, clave(item)) - item.cantidad + cantidad >= minimo;
+  };
+
+  const cambiarCantidad = (item, cantidad) => {
+    if (!permitido(item, Math.max(cantidad, 0))) return;
+    if (cantidad < 1) {
+      setPedido((actual) => actual.filter((i) => i.linea !== item.linea));
       return;
     }
-    setPedido((actual) => actual.map((i) => (clave(i) === clave(item) ? { ...i, cantidad: Math.min(MAXIMO, cantidad) } : i)));
+    setPedido((actual) => actual.map((i) => (i.linea === item.linea ? { ...i, cantidad: Math.min(MAXIMO, cantidad) } : i)));
   };
+
+  const cambiarNota = (item, nota) => setPedido((actual) => actual.map((i) => (i.linea === item.linea ? { ...i, nota } : i)));
+
+  // Separa una unidad en otra línea, para darle otra nota (ej: 2 con hielo y 1 sin hielo)
+  const separar = (item) =>
+    setPedido((actual) => {
+      const lugar = actual.findIndex((i) => i.linea === item.linea);
+      const nueva = nuevaLinea({ ...item, cantidad: 1, nota: "" });
+      const copia = actual.map((i) => (i.linea === item.linea ? { ...i, cantidad: i.cantidad - 1 } : i));
+      copia.splice(lugar + 1, 0, nueva);
+      return copia;
+    });
 
   const guardar = async (evento) => {
     evento.preventDefault();
@@ -131,12 +589,17 @@ function Editor({ id, productos, mesas, comanda }) {
     if (!pedido.length) return setError("Agregá al menos un plato o una bebida.");
     const cuerpo = {
       observaciones: observaciones.trim(),
-      items: pedido.map(({ tipo: t, id: i, cantidad }) => ({ tipo: t, id: i, cantidad })),
+      items: pedido.map(({ tipo: t, id: i, cantidad, nota }) => ({ tipo: t, id: i, cantidad, observacion: nota.trim() })),
+      ...(mozo ? { mozo: Number(mozo) } : {}),
     };
     setGuardando(true);
     try {
-      const { data } = esEdicion ? await api.patch(`/comandas/${id}/`, cuerpo) : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
-      navegar(`/comandas/${data.id_comanda}`);
+      const { data } = esEdicion
+        ? await api.patch(`/comandas/${id}/`, { ...cuerpo, ...(mesa && mesa !== String(comanda.mesa) ? { mesa: Number(mesa) } : {}) })
+        : await api.post("/comandas/", { ...cuerpo, mesa: Number(mesa) });
+      // Se va directo a imprimir el ticket; al terminar, vuelve al listado con el aviso
+      const aviso = esEdicion ? `Comanda #${data.id_comanda} guardada.` : `Comanda #${data.id_comanda} registrada en la mesa ${data.mesa_numero}.`;
+      navegar(`/comandas/${data.id_comanda}/tickets?imprimir=1${esEdicion ? "&modificada=1" : ""}`, { state: { aviso, resaltar: data.id_comanda } });
     } catch (e) {
       setError(mensajeDeError(e));
       setGuardando(false);
@@ -148,95 +611,60 @@ function Editor({ id, productos, mesas, comanda }) {
   return (
     <form onSubmit={guardar} className="contenedor-comanda">
       <Encabezado
-        titulo={esEdicion ? `Editar comanda #${id}` : "Registrar comanda"}
-        icono={esEdicion ? "edit_square" : "add"}
+        titulo={esEdicion ? `Editar comanda #${id}` : "Nueva comanda"}
+        subtitulo={
+          esEdicion
+            ? `Mesa ${comanda.mesa_numero} · desde las ${new Date(comanda.fecha_hora).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}. Cambiá la mesa, el mozo o los productos.`
+            : "Elegí el mozo, la mesa en el plano y los productos."
+        }
+        icono={esEdicion ? "edit" : "add"}
         volver={volver}
-      />
-      <Notificar texto={error || mesas.error} onListo={() => setError("")} />
+      >
+        <Link className="btn btn-outline-secondary" to="/comandas">
+          <Icono nombre="list" /> Ver comandas
+        </Link>
+      </Encabezado>
+      <Notificar texto={error || mesas.error || mozos.error} onListo={() => setError("")} />
+      {/* Al volver del comprobante después de cobrar una mesa */}
+      <Notificar tipo="success" texto={avisoCobro} />
       {!!Object.keys(minimos).length && (
-        <Alerta tipo="info">Esta comanda tiene pagos: podés agregar productos, pero no quitar ni reducir los que ya tenía.</Alerta>
+        <Alerta tipo="warning">
+          Esta comanda ya tiene {dinero(comanda.total_pagado)} abonados. Podés agregar productos o aumentar cantidades, pero no quitar ni reducir lo que ya tenía.
+        </Alerta>
       )}
+
+      <Tarjeta paso={1} titulo="Mozo" className="tarjeta-mozos">
+        <ElegirMozo mozos={mozos.datos} elegido={mozo} onElegir={setMozo} />
+      </Tarjeta>
+
+      <Tarjeta paso={2} titulo="Mesa" className="tarjeta-plano">
+        <PlanoMesas
+          mesas={mesas.datos}
+          abiertas={abiertas}
+          elegida={mesa}
+          onElegir={setMesa}
+          onCambio={onCambioPlano}
+          comandaEditada={esEdicion ? comanda.id_comanda : undefined}
+        />
+        <div className="observaciones-mesa">
+          <label htmlFor="observaciones" className="form-label">
+            Observaciones (opcional)
+          </label>
+          <textarea
+            id="observaciones"
+            className="form-control"
+            rows={2}
+            maxLength={250}
+            placeholder="Ej: es un cumpleaños, festejo de fin de año, aniversario..."
+            value={observaciones}
+            onChange={(e) => setObservaciones(e.target.value)}
+          />
+        </div>
+      </Tarjeta>
 
       <div className="comanda-layout">
         <div className="comanda-izquierda">
-          <Tarjeta icono="receipt_long" titulo="Datos del pedido">
-            <div className="mb-3">
-              <span className="form-label d-block">
-                Mesa <span className="req">*</span>
-              </span>
-              {esEdicion ? (
-                <div className="mesa-fija">
-                  <Icono nombre="table_restaurant" /> Mesa {comanda.mesa_numero}
-                </div>
-              ) : (
-                <>
-                  <div className="buscador-ingredientes mb-2">
-                    <Icono nombre="search" />
-                    <input
-                      type="search"
-                      inputMode="numeric"
-                      placeholder="Buscar por número de mesa"
-                      aria-label="Buscar mesa por número"
-                      value={buscarMesa}
-                      onChange={(e) => setBuscarMesa(e.target.value)}
-                    />
-                  </div>
-                  <p className="mesa-elegida">{mesaElegida ? `Mesa ${mesaElegida.numero_mesa} · ${mesaElegida.ubicacion_nombre}` : "Todavía no elegiste una mesa."}</p>
-                  {gruposMesas.map(([ubicacion, lista]) => (
-                    <fieldset key={ubicacion} className="grupo-mesas">
-                      <legend>{ubicacion}</legend>
-                      <div className="botones-mesa">
-                        {lista.map((m) => (
-                          <button
-                            key={m.id_mesa}
-                            type="button"
-                            className={`boton-mesa ${String(m.id_mesa) === String(mesa) ? "elegida" : ""}`}
-                            aria-pressed={String(m.id_mesa) === String(mesa)}
-                            aria-label={`Mesa ${m.numero_mesa}`}
-                            onClick={() => setMesa(String(m.id_mesa))}
-                          >
-                            {m.numero_mesa}
-                          </button>
-                        ))}
-                      </div>
-                    </fieldset>
-                  ))}
-                  {mesas.datos && !gruposMesas.length && <p className="small text-danger mb-0">No hay mesas disponibles{buscarMesa ? " con ese número" : ""}.</p>}
-                  {!!gruposMesas.length && <p className="form-text mb-0">Mesa disponible para tomar el pedido.</p>}
-                </>
-              )}
-            </div>
-
-            <div className="mb-3">
-              <span className="form-label d-block">Mozo</span>
-              <div className="tarjeta-mozo">
-                <span className="mozo-avatar">
-                  <Icono nombre="person" />
-                </span>
-                <span>
-                  <strong className="d-block">{esEdicion ? comanda.mozo : usuario?.nombre}</strong>
-                  {!esEdicion && usuario?.cargo && <span className="mozo-cargo">{usuario.cargo}</span>}
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="observaciones" className="form-label">
-                Observaciones (opcional)
-              </label>
-              <textarea
-                id="observaciones"
-                className="form-control"
-                rows={3}
-                maxLength={250}
-                placeholder="Ej: sin cebolla, bien cocida ..."
-                value={observaciones}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
-            </div>
-          </Tarjeta>
-
-          <Tarjeta icono="shopping_basket" titulo="Agregar productos" extra="Seleccioná platos y bebidas para la comanda.">
+          <Tarjeta paso={3} titulo="Productos" extra="Tocá un producto para sumarlo.">
             <div className="buscador-ingredientes mb-3">
               <Icono nombre="search" />
               <input type="search" placeholder="Buscar plato o bebida..." aria-label="Buscar producto" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
@@ -270,20 +698,65 @@ function Editor({ id, productos, mesas, comanda }) {
               </div>
             )}
             <div className="grilla-productos">
-              {visibles.map((p) => (
-                <div key={clave(p)} className="tarjeta-producto">
-                  <div className="tarjeta-producto-info">
-                    <strong>{p.nombre}</strong>
-                    <small>
-                      {p.tipo === "plato" ? "Platos" : "Bebidas"} | {p.categoria}
-                    </small>
-                    <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
+              {visibles.map((p) => {
+                const lineas = pedido.filter((i) => clave(i) === clave(p));
+                const cantidad = lineas.reduce((s, i) => s + i.cantidad, 0);
+                const notas = lineas.filter((i) => i.nota.trim());
+                return (
+                  // Toda la tarjeta se toca para sumar, como en Django
+                  <div
+                    key={clave(p)}
+                    className={`tarjeta-producto producto-card ${cantidad ? "en-pedido" : ""} ${recien === clave(p) ? "recien-agregado" : ""}`}
+                    onClick={() => agregar(p)}
+                  >
+                    {cantidad > 0 && <span className="prod-en-pedido">{cantidad} en el pedido</span>}
+                    <div className="tarjeta-producto-info">
+                      <strong>{p.nombre}</strong>
+                      <small>
+                        {p.tipo === "plato" ? "Platos" : "Bebidas"} | {p.categoria}
+                      </small>
+                      <span className="tarjeta-producto-precio">{dinero(p.precio)}</span>
+                      {cantidad > 0 && (
+                        // Notas rápidas directo en la tarjeta: se aplican a la primera línea del producto
+                        <div className="notas-rapidas notas-en-tarjeta" role="group" aria-label={`Notas para ${p.nombre}`} onClick={(e) => e.stopPropagation()}>
+                          {NOTAS[p.tipo].map((nota) => {
+                            const activa = tieneNota(lineas[0].nota, nota);
+                            return (
+                              <button
+                                key={nota}
+                                type="button"
+                                className={`nota-rapida ${activa ? "activa" : ""}`}
+                                aria-pressed={activa}
+                                onClick={() => cambiarNota(lineas[0], alternarNota(lineas[0].nota, nota))}
+                              >
+                                {nota}
+                              </button>
+                            );
+                          })}
+                          <button type="button" className="nota-rapida nota-otra" onClick={() => setNotasDe(clave(p))} title="Escribir otra nota o separar unidades">
+                            <Icono nombre="edit_note" /> Otra
+                          </button>
+                        </div>
+                      )}
+                      {/* Se escribe la nota cuando hay unidades separadas o texto propio (que no está en los botones) */}
+                      {(lineas.length > 1 || partesNota(lineas[0]?.nota || "").some((n) => !NOTAS[p.tipo].includes(n.toLowerCase()))) && (
+                        <span className="producto-notas">{notas.map((i) => `${i.cantidad} ${i.nota}`).join(" · ")}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="boton-agregar"
+                      aria-label={`Agregar ${p.nombre}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        agregar(p);
+                      }}
+                    >
+                      <Icono nombre="add" />
+                    </button>
                   </div>
-                  <button type="button" className="boton-agregar" aria-label={`Agregar ${p.nombre}`} onClick={() => agregar(p)}>
-                    <Icono nombre="add" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
               {!visibles.length && <p className="text-secondary">No hay productos disponibles con esa búsqueda.</p>}
             </div>
           </Tarjeta>
@@ -298,28 +771,30 @@ function Editor({ id, productos, mesas, comanda }) {
               </div>
             ) : (
               <ul className="lista-pedido">
-                {pedido.map((item) => (
-                  <li key={clave(item)}>
+                {/* Una fila por producto (las notas se ven y se cambian en la tarjeta del producto) */}
+                {grupos.map(({ k, item, cantidad, ultima }) => (
+                  <li key={k} className="item-carrito">
                     <div className="flex-grow-1 min-w-0">
                       <div className="fw-semibold text-truncate">{item.nombre}</div>
                       <div className="small text-secondary">
-                        {dinero(item.precio)} · <strong>{dinero(Number(item.precio) * item.cantidad)}</strong>
+                        {dinero(item.precio)} · <strong>{dinero(Number(item.precio) * cantidad)}</strong>
                       </div>
                     </div>
                     <div className="contador-cantidad">
-                      <button type="button" aria-label={`Quitar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad - 1)}>
-                        <Icono nombre={item.cantidad === 1 && !minimos[clave(item)] ? "delete" : "remove"} />
+                      <button type="button" aria-label={`Quitar uno de ${item.nombre}`} onClick={() => cambiarCantidad(ultima, ultima.cantidad - 1)}>
+                        <Icono nombre={cantidad === 1 && permitido(ultima, 0) ? "delete" : "remove"} />
                       </button>
                       <input
                         inputMode="numeric"
                         aria-label={`Cantidad de ${item.nombre}`}
-                        value={item.cantidad}
+                        value={cantidad}
                         onChange={(e) => {
                           const n = Number(e.target.value.replace(/\D/g, ""));
-                          if (n) cambiarCantidad(item, n);
+                          // La diferencia se aplica a la última línea del producto
+                          if (n && ultima.cantidad + n - cantidad >= 1) cambiarCantidad(ultima, ultima.cantidad + n - cantidad);
                         }}
                       />
-                      <button type="button" aria-label={`Agregar uno de ${item.nombre}`} onClick={() => cambiarCantidad(item, item.cantidad + 1)}>
+                      <button type="button" aria-label={`Agregar uno de ${item.nombre}`} onClick={() => sumarUno(item)}>
                         <Icono nombre="add" />
                       </button>
                     </div>
@@ -345,6 +820,108 @@ function Editor({ id, productos, mesas, comanda }) {
           </Tarjeta>
         </aside>
       </div>
+      {notasDe && (
+        <NotasProducto
+          lineas={pedido.filter((i) => clave(i) === notasDe)}
+          onNota={cambiarNota}
+          onSeparar={separar}
+          onCerrar={() => setNotasDe(null)}
+        />
+      )}
     </form>
+  );
+}
+
+// Ventana para escribir la nota de un producto, con notas rápidas y la opción de separar una unidad
+function NotasProducto({ lineas, onNota, onSeparar, onCerrar }) {
+  const caja = useRef(null);
+  const cerrar = useRef(onCerrar);
+  useEffect(() => {
+    cerrar.current = onCerrar;
+  });
+  useEffect(() => {
+    caja.current?.querySelector("input")?.focus();
+    const alPresionar = (e) => e.key === "Escape" && cerrar.current();
+    document.addEventListener("keydown", alPresionar);
+    return () => document.removeEventListener("keydown", alPresionar);
+  }, []);
+  // Si se borraron todas las unidades, la ventana ya no tiene qué mostrar
+  useEffect(() => {
+    if (!lineas.length) cerrar.current();
+  }, [lineas.length]);
+  if (!lineas.length) return null;
+  const { nombre, tipo } = lineas[0];
+
+  return createPortal(
+    <>
+      <div className="modal d-block" role="dialog" aria-modal="true" aria-labelledby="titulo-notas" onClick={(e) => e.target === e.currentTarget && onCerrar()}>
+        <div className="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-content" ref={caja}>
+            <div className="modal-header">
+              <div className="modal-icono" aria-hidden="true">
+                <Icono nombre="edit_note" />
+              </div>
+              <div className="modal-titulos">
+                <h2 className="modal-title" id="titulo-notas">
+                  Nota para {nombre}
+                </h2>
+              </div>
+              <button type="button" className="btn-cerrar-modal" aria-label="Cerrar" onClick={onCerrar}>
+                <Icono nombre="close" />
+              </button>
+            </div>
+            <div className="modal-body">
+              {lineas.map((item, n) => (
+                <div key={item.linea} className="nota-linea">
+                  {lineas.length > 1 && (
+                    <span className="nota-linea-titulo">
+                      {item.cantidad} {item.cantidad === 1 ? "unidad" : "unidades"}
+                    </span>
+                  )}
+                  <input
+                    type="text"
+                    className="form-control nota-item"
+                    maxLength={120}
+                    aria-label={`Nota ${n + 1} para ${nombre}`}
+                    placeholder={tipo === "bebida" ? "Nota para el bar (ej: sin hielo)" : "Nota para la cocina (ej: sin sal)"}
+                    value={item.nota}
+                    onChange={(e) => onNota(item, e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onCerrar())}
+                  />
+                  <div className="notas-rapidas" role="group" aria-label="Notas rápidas">
+                    {NOTAS[tipo].map((nota) => {
+                      const activa = tieneNota(item.nota, nota);
+                      return (
+                        <button
+                          key={nota}
+                          type="button"
+                          className={`nota-rapida ${activa ? "activa" : ""}`}
+                          aria-pressed={activa}
+                          onClick={() => onNota(item, alternarNota(item.nota, nota))}
+                        >
+                          {nota}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {item.cantidad > 1 && (
+                    <button type="button" className="btn-separar" onClick={() => onSeparar(item)}>
+                      <Icono nombre="call_split" /> Separar una con otra nota
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-marca" onClick={onCerrar}>
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-backdrop show" />
+    </>,
+    document.body,
   );
 }

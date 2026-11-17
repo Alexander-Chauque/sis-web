@@ -1,0 +1,310 @@
+/* Tickets para cocina, bar y parrilla: copia de static/css/ticket.css de Django, solo dentro de .vista-ticket */
+.vista-ticket {
+  --naranja: #F5A623;
+  --naranja-oscuro: #C9781A;
+  --crema: #FFF6E6;
+  --texto: #2F2A24;
+  --texto-suave: #7A7067;
+  --linea: #ECE6DD;
+}
+.vista-ticket, .vista-ticket * {
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.vista-ticket {
+  margin: 0;
+  padding: 32px 16px 110px;
+  background: #EFEBE5;
+  color: var(--texto);
+  font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.vista-ticket .material-symbols-outlined { font-size: 18px; vertical-align: middle; }
+.vista-ticket .centrado { text-align: center; }
+.vista-ticket .derecha { text-align: right; }
+.vista-ticket .tickets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 28px;
+}
+.vista-ticket .ticket-columna {
+  width: 100%;
+  max-width: 330px;
+}
+
+/* ---------- Hoja del ticket ---------- */
+.vista-ticket .ticket {
+  position: relative;
+  background: #FFFFFF;
+  border-top: 7px solid var(--naranja);
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(60, 40, 10, 0.12);
+  padding: 20px 18px 14px;
+  overflow: hidden;
+}
+
+/* ---------- Encabezado ---------- */
+.vista-ticket .ticket-encabezado {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--linea);
+}
+.vista-ticket .ticket-logo {
+  display: block;
+  width: 170px;
+  margin: 0 auto 14px;
+  /* El fondo casi blanco del JPG se funde con el papel */
+  mix-blend-mode: multiply;
+  filter: brightness(1.06) contrast(1.08);
+}
+.vista-ticket .ticket-banda {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--naranja);
+  color: #FFFFFF;
+}
+.vista-ticket .ticket-banda img {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+.vista-ticket .ticket-banda-titulo {
+  display: block;
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  line-height: 1.1;
+}
+.vista-ticket .ticket-banda-destino {
+  display: block;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+/* ---------- Datos ---------- */
+.vista-ticket .ticket-datos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin: 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--linea);
+}
+.vista-ticket .ticket-datos dt {
+  font-family: 'Oswald', sans-serif;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--naranja-oscuro);
+}
+.vista-ticket .ticket-datos dd {
+  margin: 0;
+  font-weight: 500;
+}
+.vista-ticket .ticket-dato-ancho { grid-column: 1 / -1; }
+.vista-ticket .ticket-numero, .vista-ticket .ticket-mesa {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  letter-spacing: 1px;
+}
+.vista-ticket .ticket-mesa { color: var(--naranja-oscuro); }
+
+/* ---------- Anulada ---------- */
+.vista-ticket .ticket-anulada {
+  margin-top: 12px;
+  padding: 7px;
+  border-radius: 6px;
+  background: #FDE3E3;
+  color: #A33A3A;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+.vista-ticket .ticket-sello {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-18deg);
+  padding: 4px 18px;
+  border: 4px solid rgba(200, 50, 50, 0.3);
+  border-radius: 8px;
+  color: rgba(200, 50, 50, 0.3);
+  font-family: 'Oswald', sans-serif;
+  font-size: 42px;
+  letter-spacing: 5px;
+  pointer-events: none;
+}
+
+/* ---------- Tabla ---------- */
+.vista-ticket .ticket-tabla {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.vista-ticket .ticket-tabla th {
+  padding: 7px 8px;
+  background: var(--naranja);
+  color: #FFFFFF;
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-align: left;
+}
+.vista-ticket .ticket-tabla th.centrado { text-align: center; width: 52px; }
+.vista-ticket .ticket-tabla td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--linea);
+  overflow-wrap: anywhere;
+}
+.vista-ticket .ticket-tabla tbody tr:nth-child(even) td { background: #FFFBF4; }
+.vista-ticket .ticket-cantidad {
+  font-family: 'Oswald', sans-serif;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* ---------- Observaciones ---------- */
+.vista-ticket .ticket-observaciones {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 4px solid var(--naranja);
+  border-radius: 4px;
+  background: var(--crema);
+}
+.vista-ticket .ticket-observaciones h2 {
+  margin: 0 0 2px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--naranja-oscuro);
+}
+.vista-ticket .ticket-observaciones p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Pie ---------- */
+.vista-ticket .ticket-pie {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1.5px dashed #C9C0B4;
+  font-size: 10px;
+  color: #A69C91;
+  text-align: center;
+}
+
+/* ---------- Botones (no se imprimen) ---------- */
+.vista-ticket .ticket-boton, .vista-ticket .ticket-volver {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 8px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+}
+.vista-ticket .ticket-boton {
+  background: var(--naranja);
+  color: #FFFFFF;
+}
+.vista-ticket .ticket-boton:hover { background: var(--naranja-oscuro); transform: translateY(-1px); }
+.vista-ticket .ticket-columna .ticket-boton {
+  width: 100%;
+  margin-top: 12px;
+}
+.vista-ticket .ticket-volver {
+  background: #FFFFFF;
+  color: var(--texto);
+  box-shadow: inset 0 0 0 1px #D9D2C8;
+}
+.vista-ticket .ticket-volver:hover { color: var(--naranja-oscuro); box-shadow: inset 0 0 0 1px var(--naranja); }
+.vista-ticket .ticket-boton:focus-visible, .vista-ticket .ticket-volver:focus-visible {
+  outline: 3px solid var(--texto);
+  outline-offset: 2px;
+}
+.vista-ticket .tickets-acciones {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+.vista-ticket .tickets-vacio {
+  font-size: 16px;
+  text-align: center;
+}
+
+/* ---------- Impresión ---------- */
+@media print {@page { margin: 0; }
+.vista-ticket {
+    padding: 0;
+    background: #FFFFFF;
+  }
+.vista-ticket .no-print { display: none !important; }
+.vista-ticket .tickets { display: block; }
+
+/* Un ticket por hoja, al ancho del papel de una comandera (80 mm) */
+.vista-ticket .ticket-columna {
+    max-width: 80mm;
+    margin: 0 auto;
+    break-inside: avoid;
+  }
+.vista-ticket .ticket-columna + .ticket-columna { break-before: page; }
+.vista-ticket .ticket {
+    border-radius: 0;
+    box-shadow: none;
+    padding: 12px 10px 8px;
+  }
+.vista-ticket.imprimir-uno .ticket-columna:not(.ticket-elegido) { display: none; }
+.vista-ticket.imprimir-uno .ticket-elegido { break-before: auto; }
+
+}
+
+/* Lo agregado a una comanda que ya existía, o una comanda modificada */
+.vista-ticket .ticket-aviso {
+    margin: 8px 0;
+    padding: 6px 8px;
+    border: 2px solid #000;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    letter-spacing: 0.04em;
+}
+
+/* Nota de la cocina para un producto (por ejemplo, "sin sal") */
+.vista-ticket .ticket-nota {
+    display: block;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+
+/* Ocupa toda la ventana, como el body de la página de Django */
+.vista-ticket,
+.vista-comprobante {
+  min-height: 100vh;
+}

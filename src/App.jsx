@@ -18,6 +18,7 @@ import FormularioIngrediente from "./pages/inventario/FormularioIngrediente";
 import Ingredientes from "./pages/inventario/Ingredientes";
 import Platos from "./pages/inventario/Platos";
 import Login from "./pages/Login";
+import Notificaciones from "./pages/notificaciones/Notificaciones";
 import PaginaModulo from "./pages/PaginaModulo";
 import Panel from "./pages/Panel";
 import Auditoria from "./pages/reportes/Auditoria";
@@ -79,6 +80,10 @@ export default function App() {
           <Route path="cuenta/perfil" element={<MiPerfil />} />
           <Route path="cuenta/contrasena" element={<CambiarContrasena />} />
           <Route path="cuenta/permisos" element={<MisPermisos />} />
+          {/* Parcial Nº 2 (M3): cada usuario ve las notificaciones dirigidas a su cargo */}
+          <Route path="notificaciones" element={<Notificaciones />} />
+          {/* Parcial Nº 2 (M2): los consolidados ahora son pestañas de Reportes, como en Django */}
+          <Route path="reportes/consolidados" element={<Navigate to="/reportes?tab=rentabilidad" replace />} />
           {PANTALLAS.map(({ ruta, permiso, Pantalla, props }) => (
             <Route key={ruta} element={<RutaPrivada permiso={permiso} />}>
               {/* key: al pasar de un catálogo a otro, la pantalla empieza de cero */}

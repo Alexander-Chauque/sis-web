@@ -1,229 +1,174 @@
-// Ventas, con el diseño de Django: tarjeta para registrar la venta arriba e historial abajo.
+// Ventas, igual a la de Django (VENTAS/listar_ventas.html): cada cobro de una comanda,
+// cuánto, con qué método y en qué caja quedó, y el total por método de pago.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Cargando } from "../../components/Cargando";
-import { Alerta, Encabezado, Vacio } from "../../components/Comunes";
-import { Notificar } from "../../components/Mensajes";
+import { Encabezado, Vacio } from "../../components/Comunes";
 import { Icono } from "../../components/Icono";
-import { PaginacionNumeros } from "../../components/Listado";
+import { CabeceraResultados, FiltroBuscar, FiltroFechas, ListadoLayout, PaginacionNumeros, PanelFiltros } from "../../components/Listado";
+import { Notificar } from "../../components/Mensajes";
 import { useAuth } from "../../context/AuthContext";
 import { useCarga } from "../../hooks/useCarga";
-import { api, mensajeDeError } from "../../services/api";
-import { dinero, fechaHora, fechaISO, montoValido, OPCIONES_POR_PAGINA, textoMonto } from "../../utils/formato";
+import { fechaISO } from "../../utils/formato";
 
-// Campo con un ícono a la izquierda, como los de la pantalla de ventas de Django
-function CampoConIcono({ id, etiqueta, icono, children }) {
-  return (
-    <div className="col-12 col-md-6">
-      <label htmlFor={id} className="form-label">
-        {etiqueta}
-      </label>
-      <div className="campo-con-icono">
-        <Icono nombre={icono} />
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function RegistrarVenta({ pendientes, metodos, onRegistrada }) {
-  const [comanda, setComanda] = useState(pendientes.length === 1 ? String(pendientes[0].id_comanda) : "");
-  const [metodo, setMetodo] = useState(metodos.length === 1 ? String(metodos[0].id_metodo_pago) : "");
-  const [recibido, setRecibido] = useState("");
-  const [error, setError] = useState("");
-  const [enviando, setEnviando] = useState(false);
-
-  const elegida = pendientes.find((c) => String(c.id_comanda) === comanda);
-  const vuelto = elegida && montoValido(recibido, { permitirCero: true }) ? Number(textoMonto(recibido)) - Number(elegida.saldo) : null;
-
-  const registrar = async (evento) => {
-    evento.preventDefault();
-    setError("");
-    if (!elegida || !metodo) return setError("Elegí la comanda y el método de pago.");
-    if (vuelto === null) return setError("Ingresá el monto recibido, con hasta 2 decimales.");
-    if (vuelto < 0) return setError("El monto recibido es menor al total de la comanda.");
-    setEnviando(true);
-    try {
-      const { data } = await api.post("/ventas/", { comanda: Number(comanda), metodo_pago: Number(metodo), monto_recibido: textoMonto(recibido) });
-      setComanda("");
-      setRecibido("");
-      onRegistrada(data);
-    } catch (e) {
-      setError(mensajeDeError(e));
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  return (
-    <form onSubmit={registrar}>
-      <Notificar texto={error} onListo={() => setError("")} />
-      <div className="row g-3">
-        <CampoConIcono id="venta-comanda" etiqueta="Comanda pendiente" icono="receipt_long">
-          <select id="venta-comanda" required value={comanda} onChange={(e) => setComanda(e.target.value)}>
-            <option value="">{pendientes.length ? "Elegí una comanda" : "No hay comandas para cobrar"}</option>
-            {pendientes.map((c) => (
-              <option key={c.id_comanda} value={c.id_comanda}>
-                #{c.id_comanda} · Mesa {c.mesa} · {dinero(c.saldo)}
-              </option>
-            ))}
-          </select>
-        </CampoConIcono>
-        <CampoConIcono id="venta-metodo" etiqueta="Método de pago" icono="credit_card">
-          <select id="venta-metodo" required value={metodo} onChange={(e) => setMetodo(e.target.value)}>
-            <option value="">Elegí</option>
-            {metodos.map((m) => (
-              <option key={m.id_metodo_pago} value={m.id_metodo_pago}>
-                {m.nombre_metodo_pago}
-              </option>
-            ))}
-          </select>
-        </CampoConIcono>
-        <CampoConIcono id="venta-total" etiqueta="Total de la venta" icono="payments">
-          <input id="venta-total" readOnly value={elegida ? dinero(elegida.saldo) : ""} placeholder="Se completa al elegir la comanda" />
-        </CampoConIcono>
-        <CampoConIcono id="venta-recibido" etiqueta="Monto recibido" icono="attach_money">
-          <input id="venta-recibido" inputMode="decimal" required placeholder="0,00" value={recibido} onChange={(e) => setRecibido(e.target.value)} />
-        </CampoConIcono>
-        <CampoConIcono id="venta-vuelto" etiqueta="Vuelto estimado" icono="currency_exchange">
-          <input
-            id="venta-vuelto"
-            readOnly
-            className={vuelto !== null && vuelto < 0 ? "text-danger" : ""}
-            value={vuelto === null ? "" : vuelto < 0 ? "Falta dinero" : dinero(vuelto)}
-            placeholder="—"
-          />
-        </CampoConIcono>
-        <div className="col-12 col-md-6 d-flex align-items-end">
-          <button type="submit" className="btn btn-marca w-100" disabled={enviando || !pendientes.length}>
-            <Icono nombre="point_of_sale" /> {enviando ? "Registrando..." : "Registrar venta"}
-          </button>
-        </div>
-      </div>
-    </form>
-  );
-}
+const VACIO = { buscar: "", desde: "", hasta: "" };
+// Como el "floatformat:2" de Django: $27000,00
+const monto = (valor) => `$${Number(valor || 0).toFixed(2).replace(".", ",")}`;
+const fechaHora = (valor) => {
+  const f = new Date(valor);
+  const dd = String(f.getDate()).padStart(2, "0");
+  const mm = String(f.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${f.getFullYear()} ${f.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+};
 
 export default function Ventas() {
   const { puede } = useAuth();
-  const [filtros, setFiltros] = useState({ fecha_desde: "", fecha_hasta: "", pagina: 1, por_pagina: 10 });
-  const consulta = Object.fromEntries(Object.entries(filtros).filter(([, v]) => v));
-  const ventas = useCarga("/ventas/", consulta);
-  const [aviso, setAviso] = useState("");
+  const [borrador, setBorrador] = useState(VACIO);
+  const [filtros, setFiltros] = useState(VACIO);
+  const [pagina, setPagina] = useState(1);
+  const [porPagina, setPorPagina] = useState(10);
+  const consulta = Object.fromEntries(
+    Object.entries({ buscar: filtros.buscar, fecha_desde: filtros.desde, fecha_hasta: filtros.hasta, pagina, por_pagina: porPagina }).filter(([, v]) => v),
+  );
+  const cobros = useCarga("/ventas/cobros/", consulta);
+  const datos = cobros.datos;
+  const cajaAbierta = datos?.caja_abierta;
 
-  const datos = ventas.datos;
-  const cambiar = (campo, valor) => setFiltros((f) => ({ ...f, [campo]: valor, pagina: campo === "pagina" ? valor : 1 }));
+  const aplicar = (nuevos) => {
+    setFiltros(nuevos);
+    setPagina(1);
+  };
 
   return (
     <div className="contenedor-listado">
-      <Encabezado titulo="Gestión de ventas" subtitulo="Registrar pagos y consultar las ventas realizadas." icono="payments">
-        {puede("caja:leer") && (
-          <Link className="btn btn-outline-secondary" to="/finanzas/metodos-pago">
-            <Icono nombre="category" /> Métodos de pago
+      <Encabezado titulo="Ventas" subtitulo="Cada cobro de una comanda: cuánto, con qué método y en qué caja quedó." icono="receipt_long">
+        {cajaAbierta && puede("comandas:leer") && (
+          <Link className="btn btn-marca" to="/comandas">
+            <Icono nombre="receipt_long" /> Cobrar comandas
           </Link>
         )}
       </Encabezado>
-      <Notificar tipo="success" texto={aviso} onListo={() => setAviso("")} />
-      <Notificar texto={ventas.error} />
-      {datos && !datos.caja_abierta && (
-        <Alerta tipo="warning">
-          No hay una caja abierta: no se pueden registrar ventas. {puede("caja:leer") && <Link to="/finanzas/cajas">Ir a cajas</Link>}
-        </Alerta>
-      )}
-      {datos?.caja_abierta && !datos.metodos_pago.length && <Alerta tipo="warning">No hay métodos de pago activos.</Alerta>}
+      <Notificar texto={cobros.error} />
 
-      {puede("ventas:escribir") && datos?.caja_abierta && (
-        <section className="tarjeta-seccion">
-          <div className="tarjeta-seccion-titulo">
-            <Icono nombre="point_of_sale" />
-            <h2>Registrar venta</h2>
+      {/* Estado de la caja */}
+      {datos &&
+        (cajaAbierta ? (
+          <div className="aviso-caja">
+            <Icono nombre="lock_open" />
+            <span>
+              <strong>Caja abierta</strong> Los cobros nuevos se registran en esta caja.
+            </span>
+            {puede("caja:leer") && <Link to={`/finanzas/cajas/${cajaAbierta}`}>Ver caja</Link>}
           </div>
-          <div className="tarjeta-seccion-cuerpo">
-            <RegistrarVenta
-              key={datos.comandas_pendientes.map((c) => c.id_comanda).join(",")}
-              pendientes={datos.comandas_pendientes}
-              metodos={datos.metodos_pago}
-              onRegistrada={(v) => {
-                setAviso(`Venta #${v.id_venta} registrada. Vuelto: ${dinero(v.vuelto)}.`);
-                ventas.recargar();
-              }}
+        ) : (
+          <div className="aviso-caja cerrada">
+            <Icono nombre="lock" />
+            <span>
+              <strong>Sin caja abierta</strong> Para cobrar comandas, primero abrí una caja. Las ventas anteriores se pueden consultar igual.
+            </span>
+            {puede("caja:leer") && <Link to="/finanzas/cajas">Abrir caja</Link>}
+          </div>
+        ))}
+
+      <ListadoLayout
+        filtros={
+          <PanelFiltros
+            onAplicar={() => aplicar(borrador)}
+            onLimpiar={() => {
+              setBorrador(VACIO);
+              aplicar(VACIO);
+            }}
+          >
+            <FiltroBuscar
+              id="buscar-venta"
+              etiqueta="Responsable, método de pago o n.º de comanda"
+              valor={borrador.buscar}
+              onCambiar={(v) => setBorrador({ ...borrador, buscar: v })}
+              placeholder="Buscar venta..."
             />
-          </div>
-        </section>
-      )}
-
-      <section className="tarjeta-seccion">
-        <div className="tarjeta-seccion-titulo">
-          <Icono nombre="history" />
-          <h2>Historial de ventas</h2>
-          <div className="tarjeta-seccion-extra">
-            <label className="mostrar-registros">
-              Desde
-              <input type="date" className="form-control form-control-sm" max={filtros.fecha_hasta || fechaISO()} value={filtros.fecha_desde} onChange={(e) => cambiar("fecha_desde", e.target.value)} />
-            </label>
-            <label className="mostrar-registros">
-              Hasta
-              <input type="date" className="form-control form-control-sm" min={filtros.fecha_desde || undefined} max={fechaISO()} value={filtros.fecha_hasta} onChange={(e) => cambiar("fecha_hasta", e.target.value)} />
-            </label>
-            <label className="mostrar-registros">
-              Registros por página
-              <select value={filtros.por_pagina} onChange={(e) => cambiar("por_pagina", Number(e.target.value))}>
-                {OPCIONES_POR_PAGINA.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
-        <div className="tarjeta-seccion-cuerpo">
-          {!datos ? (
-            ventas.cargando && <Cargando />
-          ) : (
-            <>
-              <div className="table-responsive tabla-con-cabecera">
-                <table className="table table-hover align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th scope="col">N.º de venta</th>
-                      <th scope="col">Fecha</th>
-                      <th scope="col">Comanda</th>
-                      <th scope="col">Método de pago</th>
-                      <th scope="col">Total</th>
-                      <th scope="col">Monto recibido</th>
-                      <th scope="col">Vuelto</th>
-                      <th scope="col">Empleado</th>
-                      <th scope="col">Caja</th>
+            <FiltroFechas desde={borrador.desde} hasta={borrador.hasta} maximo={fechaISO()} onCambiar={({ desde, hasta }) => setBorrador({ ...borrador, desde, hasta })} />
+          </PanelFiltros>
+        }
+      >
+        <CabeceraResultados
+          titulo="Ventas registradas"
+          porPagina={porPagina}
+          onPorPagina={(n) => {
+            setPorPagina(n);
+            setPagina(1);
+          }}
+        />
+        {!datos ? (
+          cobros.cargando && <Cargando />
+        ) : (
+          <>
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col">Comanda</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Responsable</th>
+                    <th scope="col">Caja</th>
+                    <th scope="col">Método de pago</th>
+                    <th scope="col">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className={cobros.cargando ? "opacity-50" : ""}>
+                  {datos.resultados.map((p) => (
+                    <tr key={p.id_pago}>
+                      <td>{puede("comandas:leer") ? <Link className="text-reset" to={`/comandas/${p.comanda}`}>#{p.comanda}</Link> : `#${p.comanda}`}</td>
+                      <td>{fechaHora(p.fecha_hora)}</td>
+                      <td>{p.responsable || "No disponible"}</td>
+                      <td>{p.caja ? `#${p.caja}` : <span className="text-secondary">—</span>}</td>
+                      <td>{p.metodo || "No disponible"}</td>
+                      <td>
+                        <strong>{monto(p.monto)}</strong>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className={ventas.cargando ? "opacity-50" : ""}>
-                    {datos.resultados.map((v) => (
-                      <tr key={v.id_venta}>
-                        <td className="fw-semibold">#{v.id_venta}</td>
-                        <td className="text-nowrap">{fechaHora(v.fecha_venta)}</td>
-                        <td>
-                          {puede("comandas:leer") ? <Link to={`/comandas/${v.comanda}`}>#{v.comanda}</Link> : `#${v.comanda}`}
-                          <span className="small text-secondary"> · Mesa {v.mesa}</span>
-                        </td>
-                        <td>{v.metodo}</td>
-                        <td className="text-nowrap fw-semibold">{dinero(v.total_venta)}</td>
-                        <td className="text-nowrap">{dinero(v.monto_recibido)}</td>
-                        <td className="text-nowrap">{dinero(v.vuelto)}</td>
-                        <td>{v.empleado || "—"}</td>
-                        <td>{puede("caja:leer") ? <Link to={`/finanzas/cajas/${v.caja}`}>#{v.caja}</Link> : `#${v.caja}`}</td>
-                      </tr>
-                    ))}
-                    {!datos.resultados.length && <Vacio columnas={9}>No hay ventas registradas.</Vacio>}
-                  </tbody>
-                </table>
+                  ))}
+                  {!datos.resultados.length && <Vacio columnas={6}>No hay ventas registradas.</Vacio>}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Resumen de ventas por método de pago */}
+            <div className="tarjeta-detalle ventas-por-metodo">
+              <div className="titulo-tarjeta">
+                <Icono nombre="payments" className="icono-naranja" />
+                <h3>Ventas por método de pago</h3>
               </div>
-              <PaginacionNumeros pagina={datos.pagina} porPagina={datos.por_pagina} total={datos.total} nombre="ventas" onPagina={(p) => cambiar("pagina", p)} />
-            </>
-          )}
-        </div>
-      </section>
+              <div className="cuerpo-tarjeta">
+                {datos.por_metodo.length ? (
+                  <table className="table mb-0">
+                    <thead>
+                      <tr>
+                        <th scope="col">Método de pago</th>
+                        <th scope="col">Total recaudado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datos.por_metodo.map((m) => (
+                        <tr key={m.metodo}>
+                          <td>{m.metodo}</td>
+                          <td>{monto(m.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="alerta-info-simple">
+                    <Icono nombre="info" /> No hay ventas registradas.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <PaginacionNumeros pagina={datos.pagina} porPagina={datos.por_pagina} total={datos.total} nombre="pagos" onPagina={setPagina} />
+          </>
+        )}
+      </ListadoLayout>
     </div>
   );
 }

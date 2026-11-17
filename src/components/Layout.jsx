@@ -1,11 +1,12 @@
-import { Suspense, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { Campana } from "./Campana";
 import { Cargando } from "./Cargando";
 import { Icono } from "./Icono";
 import { ProveedorMensajes } from "./Mensajes";
-import { MENU, ubicar } from "./menu";
+import { MENU } from "./menu";
 
 const ANIO = new Date().getFullYear();
 
@@ -34,15 +35,39 @@ function aplicarTema(oscuro) {
   }
 }
 
-function MenuLateral({ abierto, onCerrar, grupos, ruta }) {
-  // Se abre solo el grupo de la pantalla actual; el resto, a pedido
-  const actual = ubicar(ruta).grupo.titulo;
-  const [desplegados, setDesplegados] = useState({});
-  const estaDesplegado = (titulo) => desplegados[titulo] ?? titulo === actual;
+const ESCRITORIO = "(min-width: 1024px)";
+
+// En escritorio el menú queda siempre a la vista
+function useEsEscritorio() {
+  return useSyncExternalStore(
+    (avisar) => {
+      const consulta = window.matchMedia(ESCRITORIO);
+      consulta.addEventListener("change", avisar);
+      return () => consulta.removeEventListener("change", avisar);
+    },
+    () => window.matchMedia(ESCRITORIO).matches,
+  );
+}
+
+// Opciones agrupadas por sección (Inventario, Salón, Finanzas, Personal, Control)
+function agruparPorSeccion(grupos) {
+  const secciones = [];
+  grupos.forEach((g) => {
+    const ultima = secciones[secciones.length - 1];
+    if (ultima && ultima.titulo === g.seccion) ultima.opciones.push(...g.opciones);
+    else secciones.push({ titulo: g.seccion, opciones: [...g.opciones] });
+  });
+  return secciones;
+}
+
+function MenuLateral({ abierto, onCerrar, grupos }) {
+  const escritorio = useEsEscritorio();
+  const visible = abierto || escritorio;
+  const clase = ({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`;
 
   return (
     <>
-      <aside className={`sidebar no-imprimir ${abierto ? "activo" : ""}`} aria-label="Menú principal" aria-hidden={!abierto} inert={!abierto}>
+      <aside className={`sidebar no-imprimir ${abierto ? "activo" : ""}`} aria-label="Menú principal" aria-hidden={!visible} inert={!visible}>
         <div className="sidebar-header">
           <Link to="/" onClick={onCerrar}>
             <img src="/img/logo.png" alt="Los Cardones" className="sidebar-logo" />
@@ -52,46 +77,21 @@ function MenuLateral({ abierto, onCerrar, grupos, ruta }) {
           </button>
         </div>
         <nav className="sidebar-nav">
-          <NavLink to="/" end className={({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`} onClick={onCerrar}>
+          <NavLink to="/" end className={clase} onClick={onCerrar}>
             <Icono nombre="home" /> Inicio
           </NavLink>
-          {grupos.map((g) => {
-            if (!g.inicio) {
-              return g.opciones.map((o) => (
-                <NavLink
-                  key={o.a}
-                  to={o.a}
-                  className={({ isActive }) => `sidebar-item ${isActive ? "activo" : ""}`}
-                  onClick={onCerrar}
-                >
+          {agruparPorSeccion(grupos).map((s) => (
+            <div key={s.titulo} className="sidebar-seccion" role="group" aria-label={s.titulo}>
+              <p className="sidebar-etiqueta" aria-hidden="true">
+                {s.titulo}
+              </p>
+              {s.opciones.map((o) => (
+                <NavLink key={o.a} to={o.a} className={clase} onClick={onCerrar}>
                   <Icono nombre={o.icono} /> {o.texto}
                 </NavLink>
-              ));
-            }
-            const desplegado = estaDesplegado(g.titulo);
-            const id = `submenu-${g.titulo}`;
-            return (
-              <div className="sidebar-modulo" key={g.titulo}>
-                <button
-                  type="button"
-                  className="sidebar-item"
-                  aria-expanded={desplegado}
-                  aria-controls={id}
-                  onClick={() => setDesplegados((d) => ({ ...d, [g.titulo]: !desplegado }))}
-                >
-                  <Icono nombre={g.icono} /> {g.titulo}
-                  <Icono nombre="expand_more" className={`flecha-submenu ${desplegado ? "girada" : ""}`} />
-                </button>
-                <div className={`sidebar-submenu ${desplegado ? "abierto" : ""}`} id={id}>
-                  {g.opciones.map((o) => (
-                    <NavLink key={o.a} to={o.a} className={({ isActive }) => (isActive ? "activo" : "")} onClick={onCerrar}>
-                      {o.texto}
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ))}
         </nav>
       </aside>
       <div className={`overlay-sidebar ${abierto ? "activo" : ""}`} onClick={onCerrar} aria-hidden="true" />
@@ -178,45 +178,17 @@ function MenuUsuario({ usuario, cerrarSesion }) {
   );
 }
 
-function Pie({ ruta }) {
-  const { grupo: grupoMenu, opcion } = ubicar(ruta);
-  // Algunas pantallas tienen su propio nombre de módulo en el pie, como en Django
-  const grupo = opcion?.pie || grupoMenu;
+// Pie de página: una sola línea discreta, como en Django
+function Pie() {
   return (
-    <footer className="footer no-imprimir">
-      <div className="footer-container">
-        <div className="footer-identidad">
-          <img src="/img/favicon.png" alt="" className="footer-logo-img" />
-          <div className="footer-logo-texto">
-            <h3>Los Cardones</h3>
-            <p>Sistema de Gestión Gastronómica</p>
-            <p className="footer-ubicacion">Salta · Argentina</p>
-          </div>
-        </div>
-        <div className="footer-modulo">
-          <div className="footer-modulo-header">
-            <Icono nombre="apps" />
-            <span className="footer-modulo-label">Módulo actual</span>
-          </div>
-          <h4 className="footer-modulo-nombre">{grupo.titulo.toUpperCase()}</h4>
-          <p className="footer-modulo-descripcion">{grupo.descripcion.toUpperCase()}</p>
-        </div>
-      </div>
-      <div className="footer-inferior">
-        <div className="footer-acceso">
-          <Icono nombre="verified_user" />
-          <span>Acceso exclusivo para personal autorizado</span>
-        </div>
-        <div className="footer-copyright">© {ANIO} Los Cardones · Todos los derechos reservados</div>
-      </div>
-      <div className="footer-borde" />
+    <footer className="footer pie-simple no-imprimir">
+      <p>Los Cardones · Sistema de gestión gastronómica · {ANIO}</p>
     </footer>
   );
 }
 
 export default function Layout() {
   const { usuario, cerrarSesion, puede } = useAuth();
-  const { pathname } = useLocation();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const grupos = MENU.map((g) => ({ ...g, opciones: g.opciones.filter((o) => puede(o.permiso)) })).filter((g) => g.opciones.length);
@@ -233,7 +205,7 @@ export default function Layout() {
       <a className="visually-hidden-focusable btn btn-light position-absolute m-2" href="#contenido">
         Saltar al contenido
       </a>
-      <MenuLateral abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} grupos={grupos} ruta={pathname} />
+      <MenuLateral abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} grupos={grupos} />
       <div className="contenido-principal">
         <header className="topbar no-imprimir">
           <div className="topbar-left">
@@ -245,6 +217,7 @@ export default function Layout() {
             </Link>
           </div>
           <div className="navbar-user">
+            <Campana />
             <MenuUsuario usuario={usuario} cerrarSesion={cerrarSesion} />
           </div>
         </header>
@@ -259,7 +232,7 @@ export default function Layout() {
             </div>
           </ProveedorMensajes>
         </main>
-        <Pie ruta={pathname} />
+        <Pie />
       </div>
     </>
   );
