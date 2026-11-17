@@ -1,14 +1,11 @@
-// Pantallas de la cuenta (Mi perfil, Cambiar contraseña, Mis permisos):
+// Pantallas de la cuenta (Cambiar contraseña, Mis permisos; Mi perfil está en MiPerfil.jsx):
 // tarjeta centrada, sin imágenes de fondo.
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Cargando } from "../../components/Cargando";
-import { Alerta } from "../../components/Comunes";
 import { Icono } from "../../components/Icono";
 import { Notificar } from "../../components/Mensajes";
 import { useAuth } from "../../context/AuthContext";
-import { useCarga } from "../../hooks/useCarga";
 import { api, mensajeDeError } from "../../services/api";
 
 function PaginaCuenta({ icono, titulo, subtitulo, children }) {
@@ -24,11 +21,6 @@ function PaginaCuenta({ icono, titulo, subtitulo, children }) {
       <section className="cuenta-tarjeta">{children}</section>
     </div>
   );
-}
-
-function iniciales(nombre = "") {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  return ((partes[0]?.[0] || "") + (partes[1]?.[0] || "")).toUpperCase() || "?";
 }
 
 function CampoCuenta({ id, icono, etiqueta, children }) {
@@ -62,117 +54,6 @@ function CampoClave({ id, etiqueta, valor, onCambiar, autoComplete, autoFocus })
         </button>
       </div>
     </CampoCuenta>
-  );
-}
-
-export function MiPerfil() {
-  const { usuario } = useAuth();
-  const perfil = useCarga("/perfil/");
-  const [editando, setEditando] = useState(false);
-  const [correo, setCorreo] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [error, setError] = useState("");
-  const [aviso, setAviso] = useState("");
-  const [guardando, setGuardando] = useState(false);
-
-  const p = perfil.datos;
-  if (perfil.cargando && !p) return <Cargando />;
-  if (!p) return <Alerta>{perfil.error}</Alerta>;
-
-  const nombre = `${p.nombre_empleado} ${p.apellido_empleado}`.trim() || p.usuario;
-
-  const editar = () => {
-    setCorreo(p.correo);
-    setTelefono(p.telefono);
-    setError("");
-    setEditando(true);
-  };
-
-  const guardar = async (evento) => {
-    evento.preventDefault();
-    setError("");
-    setGuardando(true);
-    try {
-      const { data } = await api.patch("/perfil/", { correo: correo.trim(), telefono: telefono.trim() });
-      perfil.setDatos(data);
-      setEditando(false);
-      setAviso("Tus datos se actualizaron correctamente.");
-    } catch (e) {
-      setError(mensajeDeError(e));
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <PaginaCuenta icono="person" titulo="Mi perfil" subtitulo="Consulta y administra tu información personal.">
-      <Notificar tipo="success" texto={aviso} onListo={() => setAviso("")} />
-      <div className="perfil-cabecera">
-        <span className="user-avatar perfil-avatar-grande" aria-hidden="true">
-          {iniciales(nombre)}
-        </span>
-        <div>
-          <h2>{nombre}</h2>
-          <span className="cuenta-etiqueta">
-            <Icono nombre="workspace_premium" /> {p.cargo || usuario?.cargo || "Usuario"}
-          </span>
-        </div>
-      </div>
-
-      {editando ? (
-        <form className="cuenta-formulario" onSubmit={guardar} noValidate>
-          {error && <p className="cuenta-error">{error}</p>}
-          <CampoCuenta id="perfil-correo" icono="mail" etiqueta="Correo electrónico">
-            <input id="perfil-correo" type="email" required maxLength={80} value={correo} onChange={(e) => setCorreo(e.target.value)} />
-          </CampoCuenta>
-          <CampoCuenta id="perfil-telefono" icono="call" etiqueta="Teléfono">
-            <input id="perfil-telefono" maxLength={20} placeholder="+54 387 456-7890" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-          </CampoCuenta>
-          <div className="cuenta-botones">
-            <button type="button" className="cuenta-btn cuenta-btn-secundario" onClick={() => setEditando(false)}>
-              <Icono nombre="close" /> Cancelar
-            </button>
-            <button type="submit" className="cuenta-btn cuenta-btn-primario" disabled={guardando}>
-              <Icono nombre="save" /> {guardando ? "Guardando..." : "Guardar cambios"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <>
-          <dl className="perfil-cuenta-datos">
-            <div>
-              <dt>
-                <Icono nombre="person" /> Usuario
-              </dt>
-              <dd>{p.usuario}</dd>
-            </div>
-            <div>
-              <dt>
-                <Icono nombre="mail" /> Correo electrónico
-              </dt>
-              <dd>{p.correo || "Sin cargar"}</dd>
-            </div>
-            <div>
-              <dt>
-                <Icono nombre="badge" /> Nombre completo
-              </dt>
-              <dd>{nombre}</dd>
-            </div>
-            <div>
-              <dt>
-                <Icono nombre="call" /> Teléfono
-              </dt>
-              <dd>{p.telefono || "Sin cargar"}</dd>
-            </div>
-          </dl>
-          <div className="cuenta-botones">
-            <button type="button" className="cuenta-btn cuenta-btn-secundario" onClick={editar}>
-              <Icono nombre="edit" /> Editar datos
-            </button>
-          </div>
-        </>
-      )}
-    </PaginaCuenta>
   );
 }
 
